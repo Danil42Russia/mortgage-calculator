@@ -287,7 +287,10 @@
           <p class="hint" id="budget-reserve-hint">Подушка покрывает выбранное число платежей по ипотеке. Остаток накоплений идёт на первый взнос.</p>
           <label class="check-line reserve-payoff"><input id="budget-use-reserve" type="checkbox" aria-describedby="budget-payoff-hint"> Погасить остаток ипотеки из подушки</label>
           <p class="hint" id="budget-payoff-hint">После очередного платежа кредит закроется, как только остаток долга станет равен подушке или меньше неё.</p>
-          <p class="hint" id="budget-payoff-result" role="status" hidden></p>
+          <div class="hint" id="budget-payoff-result" role="status" hidden>
+            <strong id="budget-payoff-time"></strong>
+            <p id="budget-payoff-details"></p>
+          </div>
         </fieldset>
         <details class="budget-terms" id="budget-terms">
           <summary><span>Условия кредита</span><span class="budget-terms-summary" id="budget-terms-summary"></span></summary>

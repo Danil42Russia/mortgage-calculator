@@ -175,6 +175,16 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
   };
 }
 
+export function calculateReservePayoff(input: MortgageInput) {
+  const schedule = calculateMortgage(input);
+  let monthsSaved = 0;
+  if (input.prepayment && schedule.rows.at(-1)?.fromReserve) {
+    const withoutReserve = calculateMortgage({ ...input, prepayment: { ...input.prepayment, payoffReserve: 0 } });
+    monthsSaved = withoutReserve.rows.length - schedule.rows.length;
+  }
+  return { schedule, monthsSaved };
+}
+
 export interface SchedulePeriod {
   period: number;
   payment: number;

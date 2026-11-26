@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { calculateMortgage, halfRepaidMonth, summarizeSchedule } from '../src/mortgage.ts';
+import { calculateMortgage, calculateReservePayoff, halfRepaidMonth, summarizeSchedule } from '../src/mortgage.ts';
 import type { MortgageInput } from '../src/mortgage.ts';
 
 const loan: MortgageInput = { principal: 1_200_000, annualRate: 12, months: 12, paymentType: 'annuity' };
@@ -57,6 +57,26 @@ test('the reserve covers only what remains after other prepayments', () => {
   assert.equal(result.rows[0].fromReserve, 700_000);
   assert.equal(result.totalPrepayment, 1_100_000);
   assert.equal(summarizeSchedule(result.rows, 'year')[0].payment, loan.principal);
+});
+
+test('reserve time savings are measured against the same mortgage with all other payments retained', () => {
+  const input = { ...loan, principal: 2_400_000, annualRate: 0, months: 240 };
+  const prepayment = { goal: 'term' as const, payoffReserve: 130_000 };
+  const payoff = calculateReservePayoff({ ...input, prepayment });
+  assert.equal(payoff.schedule.rows.length, 227);
+  assert.equal(payoff.monthsSaved, 13);
+  const withLump = calculateReservePayoff({ ...input, prepayment: { ...prepayment, lump: { month: 1, amount: 30_000 } } });
+  assert.equal(withLump.schedule.rows.length, 224);
+  assert.equal(withLump.monthsSaved, 13);
+});
+
+test('rounding can shorten the baseline and an unused reserve saves zero months', () => {
+  const input = { ...loan, principal: 1, annualRate: 0, months: 120 };
+  const baseline = calculateReservePayoff(input);
+  assert.equal(baseline.schedule.rows.length, 100);
+  assert.equal(baseline.monthsSaved, 0);
+  assert.equal(calculateReservePayoff({ ...input, prepayment: { goal: 'term', payoffReserve: 0.12 } }).monthsSaved, 12);
+  assert.equal(calculateReservePayoff({ ...loan, prepayment: { goal: 'term', payoffReserve: 1 } }).monthsSaved, 0);
 });
 
 test('declining payments reduce interest while scheduled principal stays constant', () => {

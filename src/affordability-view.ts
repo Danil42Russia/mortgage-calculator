@@ -3,9 +3,9 @@ import type { AffordabilityInput } from './affordability.ts';
 import { calculatorHash, readChoiceParam, readNumberParam } from './calculator-uri.ts';
 import { durationAxis, SeriesChart } from './chart.ts';
 import { setupMortgageChart } from './mortgage-chart.ts';
-import { decimal, formatTerm, integer, money, monthWord, numberFromInput, yearWord } from './format.ts';
+import { decimal, formatPaymentMonth, formatTerm, integer, money, monthWord, numberFromInput, yearWord } from './format.ts';
 import { bindMoneyGrouping, bindPercentFormatting } from './money-input.ts';
-import { calculateMortgage } from './mortgage.ts';
+import { calculateReservePayoff } from './mortgage.ts';
 import { estimateSalary2026, projectSalary } from './salary.ts';
 import type { SalaryBalance, SalaryEstimate, SalaryMonth } from './salary.ts';
 import { MARKET_RATE } from './scenario.ts';
@@ -218,21 +218,23 @@ export function setupAffordability(
     status.hidden = !notice;
 
     const payoffReserve = useReserve ? quote?.reserve ?? 0 : 0;
-    const schedule = quote ? calculateMortgage({
+    const payoff = quote ? calculateReservePayoff({
       principal: quote.principal,
       annualRate: budget.annualRate,
       months,
       paymentType: 'annuity',
       prepayment: payoffReserve ? { goal: 'term', payoffReserve } : undefined,
     }) : null;
+    const schedule = payoff?.schedule ?? null;
     const lastPayment = schedule?.rows.at(-1);
-    const fromReserve = lastPayment?.fromReserve ?? 0;
-    budgetElement('payoff-result').hidden = !useReserve || !quote;
-    if (useReserve && quote) {
-      const outcome = fromReserve && lastPayment
-        ? 'Кредит закроется на ' + lastPayment.month + '-м месяце. Из подушки уйдёт ' + decimal(fromReserve) + '\u00a0₽.'
-        : 'Кредит закроется по обычному графику.';
-      budgetText('payoff-result', outcome + ' В подушке останется ' + decimal(payoffReserve - fromReserve) + '\u00a0₽.');
+    budgetElement('payoff-result').hidden = !useReserve || !lastPayment;
+    if (useReserve && payoff && lastPayment) {
+      const fromReserve = lastPayment.fromReserve ?? 0;
+      budgetText('payoff-time', 'Экономия времени — ' + formatTerm(payoff.monthsSaved, 'long') + '.');
+      budgetText('payoff-details', 'Кредит закроется через ' + formatTerm(lastPayment.month, 'long')
+        + ' (' + formatPaymentMonth(lastPayment.month) + ').'
+        + (fromReserve ? ' Из подушки уйдёт ' + decimal(fromReserve) + '\u00a0₽.' : '')
+        + ' В подушке останется ' + decimal(payoffReserve - fromReserve) + '\u00a0₽.');
     }
     const balances = salary ? projectSalary(estimate ?? salary, months, schedule?.rows ?? []) : [];
     budgetElement('salary').hidden = !salary;

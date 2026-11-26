@@ -56,10 +56,17 @@ export function plural(value: number, forms: readonly [string, string, string]):
 export const yearWord = (value: number) => plural(value, ['год', 'года', 'лет']);
 export const monthWord = (value: number) => plural(value, ['месяц', 'месяца', 'месяцев']);
 
-export function formatTerm(months: number) {
+export const firstPaymentYear = 2026;
+const paymentCalendar = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+export function formatPaymentMonth(month: number) {
+  return paymentCalendar.format(Date.UTC(firstPaymentYear, month - 1, 1));
+}
+
+export function formatTerm(months: number, monthStyle: 'short' | 'long' = 'short') {
   const years = Math.floor(months / 12);
   const remainder = months % 12;
   if (years === 0) return months + ' ' + monthWord(months);
   if (remainder === 0) return years + ' ' + yearWord(years);
-  return years + ' ' + yearWord(years) + ' ' + remainder + ' мес.';
+  return years + ' ' + yearWord(years) + ' ' + remainder + ' ' + (monthStyle === 'long' ? monthWord(remainder) : 'мес.');
 }

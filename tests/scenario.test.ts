@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { numberFromInput } from '../src/format.ts';
+import { formatPaymentMonth, formatTerm, numberFromInput } from '../src/format.ts';
 import { DEFAULT_SCENARIO, evaluateScenario, familyTerms } from '../src/scenario.ts';
 import { scheduleCsv } from '../src/schedule-table.ts';
 
@@ -70,6 +70,18 @@ test('Russian decimal and monetary inputs accept common separators', () => {
   assert.equal(numberFromInput('17.35', true), 17.35);
   assert.ok(Number.isNaN(numberFromInput('17,35', false)));
   assert.ok(Number.isNaN(numberFromInput('', true)));
+});
+
+test('payoff dates count from January 2026 and durations spell out Russian years and months', () => {
+  assert.match(formatPaymentMonth(1), /январь 2026/);
+  assert.match(formatPaymentMonth(12), /декабрь 2026/);
+  assert.match(formatPaymentMonth(13), /январь 2027/);
+  assert.match(formatPaymentMonth(227), /ноябрь 2044/);
+  assert.equal(formatTerm(227, 'long'), '18 лет 11 месяцев');
+  assert.equal(formatTerm(13, 'long'), '1 год 1 месяц');
+  assert.equal(formatTerm(26, 'long'), '2 года 2 месяца');
+  assert.equal(formatTerm(12, 'long'), '1 год');
+  assert.equal(formatTerm(0, 'long'), '0 месяцев');
 });
 
 test('CSV includes every period, a UTF-8 marker and decimal commas', () => {

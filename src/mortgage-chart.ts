@@ -1,5 +1,5 @@
 import { durationAxis, SeriesChart } from './chart.ts';
-import { decimal, formatTerm } from './format.ts';
+import { decimal, firstPaymentYear, formatPaymentMonth, formatTerm } from './format.ts';
 import { halfRepaidMonth, summarizeSchedule } from './mortgage.ts';
 import type { MortgageResult } from './mortgage.ts';
 
@@ -8,8 +8,6 @@ interface MortgageChartData {
   baseline: MortgageResult | null;
 }
 
-const firstYear = 2026;
-const calendar = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const rubles = (value: number) => decimal(value) + '\u00a0₽';
 
 export function setupMortgageChart(card: HTMLElement, onModeChange: () => void) {
@@ -50,15 +48,15 @@ export function setupMortgageChart(card: HTMLElement, onModeChange: () => void) 
       canvas.setAttribute('aria-label', 'Основной долг и проценты за год. Используйте стрелки для выбора года.');
       const crossover = years.find(year => year.principal > year.interest);
       note.textContent = crossover
-        ? 'В ' + (firstYear + crossover.period - 1) + ' году на погашение долга впервые уйдёт больше, чем на проценты.'
+        ? 'В ' + (firstPaymentYear + crossover.period - 1) + ' году на погашение долга впервые уйдёт больше, чем на проценты.'
         : 'В каждом году выплаты процентов не меньше суммы погашения основного долга.';
       plot.setSeries({
         values: annualPayments,
         valueAxisLabel: '₽ за год',
         stack: { lower: years.map(year => year.principal), lowerLabel: 'Основной долг', upperLabel: 'Проценты', totalLabel: 'Итого за год' },
         axisStep: 1,
-        axisLabel: index => String(firstYear + index),
-        pointLabel: index => firstYear + index + ' год',
+        axisLabel: index => String(firstPaymentYear + index),
+        pointLabel: index => firstPaymentYear + index + ' год',
         formatValue: rubles,
       });
     } else {
@@ -67,7 +65,7 @@ export function setupMortgageChart(card: HTMLElement, onModeChange: () => void) 
       const half = halfRepaidMonth(result);
       let marker;
       if (half !== undefined) {
-        const date = calendar.format(Date.UTC(firstYear, half - 1, 1));
+        const date = formatPaymentMonth(half);
         marker = { index: half, label: '50 % · ' + date };
         note.textContent = 'Погашена половина кредита — ' + date + ' (через ' + formatTerm(half) + ').';
       }
