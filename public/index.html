@@ -250,13 +250,15 @@
           </label>
           <div class="budget-income-feedback">
             <p class="hint" id="budget-income-hint">Возьмите начисленную сумму за месяц из расчётного листка.</p>
-            <p class="hint" id="budget-monthly-left" hidden>После ипотеки остаётся <strong id="budget-monthly-left-amount"></strong> в месяц.</p>
             <button class="outline-button" id="budget-open-salary" type="button" hidden>График зарплаты <span aria-hidden="true">↓</span></button>
           </div>
           <label class="budget-field" for="budget-debt-share">Доля зарплаты на ипотеку
-            <span class="input-frame"><input id="budget-debt-share" type="text" inputmode="decimal" aria-describedby="budget-share-hint"><span>%</span></span>
+            <span class="input-frame"><input id="budget-debt-share" type="text" inputmode="decimal" aria-describedby="budget-share-feedback"><span>%</span></span>
           </label>
-          <p class="hint" id="budget-share-hint">Какой процент зарплаты на руки вы готовы отдавать за ипотеку.</p>
+          <div class="budget-income-feedback" id="budget-share-feedback">
+            <p class="hint" id="budget-share-hint">Какой процент зарплаты на руки вы готовы отдавать за ипотеку.</p>
+            <p class="hint" id="budget-monthly-left" hidden>После ипотеки остаётся <strong id="budget-monthly-left-amount"></strong> в месяц.</p>
+          </div>
           <label class="budget-field" for="budget-savings">Накопления на сегодня
             <span class="input-frame"><input id="budget-savings" type="text" inputmode="numeric" placeholder="Например, 1 500 000" aria-describedby="budget-savings-hint"><span>₽</span></span>
           </label>
