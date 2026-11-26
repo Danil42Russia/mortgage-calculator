@@ -10,6 +10,7 @@ interface MortgageChartData {
 
 const firstYear = 2026;
 const calendar = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+const rubles = (value: number) => decimal(value) + '\u00a0₽';
 
 export function setupMortgageChart(card: HTMLElement, onModeChange: () => void) {
   const canvas = card.querySelector('canvas')!;
@@ -42,21 +43,23 @@ export function setupMortgageChart(card: HTMLElement, onModeChange: () => void) 
     const { result, baseline } = data;
     if (payments) {
       const years = summarizeSchedule(result.rows, 'year');
-      caption.textContent = result.totalPrepayment
-        ? 'Каждый столбец — год выплат. Досрочные взносы входят в основной долг.'
-        : 'Каждый столбец показывает выплаты за один год.';
+      const annualPayments = years.map(year => year.payment);
+      caption.textContent = 'Максимум выплат за один год — ' + rubles(Math.max(...annualPayments))
+        + '. Выплаты за весь срок — ' + rubles(result.totalPaid) + '.'
+        + (result.totalPrepayment ? ' Досрочные взносы входят в основной долг.' : '');
       canvas.setAttribute('aria-label', 'Основной долг и проценты за год. Используйте стрелки для выбора года.');
       const crossover = years.find(year => year.principal > year.interest);
       note.textContent = crossover
         ? 'В ' + (firstYear + crossover.period - 1) + ' году на погашение долга впервые уйдёт больше, чем на проценты.'
         : 'В каждом году выплаты процентов не меньше суммы погашения основного долга.';
       plot.setSeries({
-        values: years.map(year => year.payment),
-        stack: { lower: years.map(year => year.principal), lowerLabel: 'Основной долг', upperLabel: 'Проценты' },
+        values: annualPayments,
+        valueAxisLabel: '₽ за год',
+        stack: { lower: years.map(year => year.principal), lowerLabel: 'Основной долг', upperLabel: 'Проценты', totalLabel: 'Итого за год' },
         axisStep: 1,
         axisLabel: index => String(firstYear + index),
         pointLabel: index => firstYear + index + ' год',
-        formatValue: value => decimal(value) + '\u00a0₽',
+        formatValue: rubles,
       });
     } else {
       caption.textContent = 'Первый платёж в расчёте — январь 2026 года.';

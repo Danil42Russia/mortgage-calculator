@@ -1,4 +1,5 @@
 import { compactNumber, formatTerm, money, yearWord } from './format.ts';
+import { valueAxis } from './chart-scale.ts';
 
 interface Plot {
   left: number;
@@ -7,11 +8,6 @@ interface Plot {
   bottom: number;
   x: (month: number) => number;
   y: (balance: number) => number;
-}
-
-function tickInterval(value: number) {
-  const magnitude = 10 ** Math.floor(Math.log10(value));
-  return ([1, 2, 2.5, 5, 10].find(step => step * magnitude >= value) ?? 10) * magnitude;
 }
 
 export function durationAxis(month: number, last: boolean) {
@@ -25,10 +21,11 @@ interface ChartSeries {
   axisLabel: (index: number, last: boolean) => string;
   pointLabel: (index: number) => string;
   axisStep: number;
+  valueAxisLabel?: string;
   formatValue?: (value: number) => string;
   fitValues?: boolean;
   marker?: { index: number; label: string };
-  stack?: { lower: number[]; lowerLabel: string; upperLabel: string };
+  stack?: { lower: number[]; lowerLabel: string; upperLabel: string; totalLabel: string };
 }
 
 export class SeriesChart {
@@ -110,18 +107,12 @@ export class SeriesChart {
     if (!data?.values.length || width < 110) return;
 
     const allValues = data.values.concat(data.comparison?.values ?? []);
-    const high = Math.max(0, ...allValues);
-    const lowestValue = Math.min(...allValues);
-    const low = data.fitValues && lowestValue > 0 && lowestValue < high
-      ? Math.min(lowestValue, high * 0.95) : Math.min(0, lowestValue);
-    const step = tickInterval((high - low || 1) / 4);
-    const firstTick = Math.floor(low / step);
-    const lastTick = Math.max(firstTick + 1, Math.ceil(high / step));
+    const { step, firstTick, lastTick } = valueAxis(allValues, data.fitValues);
     const minimum = firstTick * step;
     const maximum = lastTick * step;
     const left = width < 410 ? 60 : 70;
     const right = width - 17;
-    const top = 15;
+    const top = data.valueAxisLabel ? 28 : 15;
     const bottom = height - 27;
     const slot = (right - left) / (maxMonth + 1);
     const x = data.stack ? (index: number) => left + (index + 0.5) * slot
@@ -134,6 +125,10 @@ export class SeriesChart {
     context.fillStyle = '#726d85';
     context.strokeStyle = '#ebe6f3';
     context.lineWidth = 1;
+    if (data.valueAxisLabel) {
+      context.textAlign = 'right';
+      context.fillText(data.valueAxisLabel, left - 9, 9);
+    }
     for (let index = firstTick; index <= lastTick; index += 1) {
       const value = index * step;
       const level = y(value);
@@ -142,7 +137,7 @@ export class SeriesChart {
       context.lineTo(right, level);
       context.stroke();
       context.textAlign = 'right';
-      context.fillText(compactNumber(value) + ' ₽', left - 9, level);
+      context.fillText(compactNumber(value) + (data.valueAxisLabel ? '' : ' ₽'), left - 9, level);
     }
 
     const stride = data.axisStep * Math.max(1, Math.ceil(maxMonth / data.axisStep / (width < 410 ? 3 : 4)));
@@ -252,7 +247,8 @@ export class SeriesChart {
     if (data.stack) {
       const lower = data.stack.lower[month];
       values.push(data.stack.lowerLabel + ' ' + format(lower),
-        document.createElement('br'), data.stack.upperLabel + ' ' + format(value - lower));
+        document.createElement('br'), data.stack.upperLabel + ' ' + format(value - lower),
+        document.createElement('br'), data.stack.totalLabel + ' ' + format(value));
     } else {
       values.push(format(value));
       if (data.comparison) {
