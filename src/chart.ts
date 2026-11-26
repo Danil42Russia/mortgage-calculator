@@ -1,10 +1,4 @@
 import { compactNumber, formatTerm, money, yearWord } from './format.ts';
-import type { MortgageResult } from './mortgage.ts';
-
-interface ChartData {
-  result: MortgageResult;
-  baseline: MortgageResult | null;
-}
 
 interface Plot {
   left: number;
@@ -33,6 +27,8 @@ interface ChartSeries {
   axisStep: number;
   formatValue?: (value: number) => string;
   fitValues?: boolean;
+  marker?: { index: number; label: string };
+  stack?: { lower: number[]; lowerLabel: string; upperLabel: string };
 }
 
 export class SeriesChart {
@@ -53,7 +49,9 @@ export class SeriesChart {
       const { left, right } = this.plot;
       const offset = event.clientX - canvas.getBoundingClientRect().left;
       const ratio = Math.min(1, Math.max(0, (offset - left) / (right - left)));
-      this.activeMonth = Math.round(ratio * this.maxMonth);
+      this.activeMonth = this.data?.stack
+        ? Math.min(this.maxMonth, Math.floor(ratio * (this.maxMonth + 1)))
+        : Math.round(ratio * this.maxMonth);
       this.draw();
     };
     canvas.addEventListener('pointermove', inspect);
@@ -82,7 +80,7 @@ export class SeriesChart {
   setSeries(data: ChartSeries | null) {
     this.data = data;
     this.maxMonth = Math.max(0, (data?.values.length ?? 0) - 1, (data?.comparison?.values.length ?? 0) - 1);
-    this.canvas.tabIndex = this.maxMonth ? 0 : -1;
+    this.canvas.tabIndex = data?.values.length ? 0 : -1;
     if (this.activeMonth !== null) this.activeMonth = Math.min(this.activeMonth, this.maxMonth);
     this.draw();
   }
@@ -109,7 +107,7 @@ export class SeriesChart {
     context.clearRect(0, 0, width, height);
     this.tooltip.hidden = true;
     this.plot = null;
-    if (!data || !maxMonth || width < 110) return;
+    if (!data?.values.length || width < 110) return;
 
     const allValues = data.values.concat(data.comparison?.values ?? []);
     const high = Math.max(0, ...allValues);
@@ -125,7 +123,9 @@ export class SeriesChart {
     const right = width - 17;
     const top = 15;
     const bottom = height - 27;
-    const x = (month: number) => left + month * (right - left) / maxMonth;
+    const slot = (right - left) / (maxMonth + 1);
+    const x = data.stack ? (index: number) => left + (index + 0.5) * slot
+      : (index: number) => left + index * (right - left) / Math.max(1, maxMonth);
     const y = (value: number) => bottom - (value - minimum) * (bottom - top) / (maximum - minimum);
     this.plot = { left, right, top, bottom, x, y };
 
@@ -152,9 +152,29 @@ export class SeriesChart {
       context.textAlign = 'center';
       context.fillText(data.axisLabel(index, false), position, height - 11);
     }
-    context.textAlign = 'right';
-    context.fillText(data.axisLabel(maxMonth, true), right, height - 11);
+    context.textAlign = data.stack ? 'center' : 'right';
+    context.fillText(data.axisLabel(maxMonth, true), x(maxMonth), height - 11);
 
+    const stack = data.stack;
+    if (stack) {
+      const barWidth = Math.min(46, 0.76 * slot);
+      data.values.forEach((total, index) => {
+        const barLeft = x(index) - barWidth / 2;
+        const split = y(stack.lower[index]);
+        context.fillStyle = '#7447d4';
+        context.fillRect(barLeft, split, barWidth, y(0) - split);
+        context.fillStyle = '#31947e';
+        context.fillRect(barLeft, y(total), barWidth, split - y(total));
+      });
+    } else {
+      this.drawLines(context, data, this.plot);
+    }
+    if (this.activeMonth !== null) this.drawSelection(context, width, this.activeMonth, this.plot, data);
+  }
+
+  private drawLines(context: CanvasRenderingContext2D, data: ChartSeries, plot: Plot) {
+    const { left, right, top, bottom, x, y } = plot;
+    const maxMonth = this.maxMonth;
     const trace = (values: number[]) => {
       context.beginPath();
       context.moveTo(left, y(values[0]));
@@ -163,7 +183,7 @@ export class SeriesChart {
       }
     };
     trace(data.values);
-    const base = y(Math.max(0, minimum));
+    const base = Math.min(bottom, y(0));
     context.lineTo(right, base);
     context.lineTo(left, base);
     context.closePath();
@@ -188,7 +208,24 @@ export class SeriesChart {
     context.lineCap = 'round';
     context.stroke();
 
-    if (this.activeMonth !== null) this.drawSelection(context, width, this.activeMonth, this.plot, data);
+    if (data.marker) {
+      const px = x(data.marker.index);
+      const py = y(data.values[data.marker.index]);
+      context.beginPath();
+      context.arc(px, py, 4.5, 0, 2 * Math.PI);
+      context.fillStyle = '#fff';
+      context.fill();
+      context.strokeStyle = '#5630ba';
+      context.stroke();
+      const labelWidth = context.measureText(data.marker.label).width;
+      const labelX = px + 8 + labelWidth <= right ? px + 8 : Math.max(left, px - 8 - labelWidth);
+      const labelY = Math.max(top, py - 13);
+      context.fillStyle = '#ffffffed';
+      context.fillRect(labelX - 3, labelY - 8, labelWidth + 6, 16);
+      context.fillStyle = '#5630ba';
+      context.textAlign = 'left';
+      context.fillText(data.marker.label, labelX, labelY);
+    }
   }
 
   private drawSelection(
@@ -211,9 +248,17 @@ export class SeriesChart {
     const heading = document.createElement('strong');
     heading.textContent = data.pointLabel(month);
     const format = data.formatValue ?? money;
-    const values = data.comparison
-      ? [format(value), document.createElement('br'), data.comparison.label + ' ' + format(data.comparison.values[month] ?? 0)]
-      : [format(value)];
+    const values: (string | Node)[] = [];
+    if (data.stack) {
+      const lower = data.stack.lower[month];
+      values.push(data.stack.lowerLabel + ' ' + format(lower),
+        document.createElement('br'), data.stack.upperLabel + ' ' + format(value - lower));
+    } else {
+      values.push(format(value));
+      if (data.comparison) {
+        values.push(document.createElement('br'), data.comparison.label + ' ' + format(data.comparison.values[month] ?? 0));
+      }
+    }
     this.tooltip.replaceChildren(heading, ...values);
     this.tooltip.hidden = false;
     const preferred = position + 9 + this.tooltip.offsetWidth > width
@@ -221,21 +266,5 @@ export class SeriesChart {
       : position + 9;
     this.tooltip.style.left = Math.max(0, preferred) + 'px';
     this.tooltip.style.top = '4px';
-  }
-}
-
-function balances(result: MortgageResult) {
-  return [result.principal, ...result.rows.map(row => row.balance)];
-}
-
-export class BalanceChart extends SeriesChart {
-  set(data: ChartData | null) {
-    this.setSeries(data ? {
-      values: balances(data.result),
-      comparison: data.baseline ? { values: balances(data.baseline), label: 'Без досрочных' } : undefined,
-      axisStep: 12,
-      axisLabel: durationAxis,
-      pointLabel: month => month ? 'Через ' + formatTerm(month) : 'При выдаче',
-    } : null);
   }
 }

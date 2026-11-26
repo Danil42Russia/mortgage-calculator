@@ -1,4 +1,4 @@
-import { BalanceChart } from './chart.ts';
+import { setupMortgageChart } from './mortgage-chart.ts';
 import { setupAffordability } from './affordability-view.ts';
 import type { BudgetScenario } from './affordability-view.ts';
 import { calculatorHash, parseCalculatorHash, readChoiceParam, readNumberParam } from './calculator-uri.ts';
@@ -16,7 +16,7 @@ function element<T extends HTMLElement = HTMLElement>(id: string): T {
 }
 
 const programs = document.querySelectorAll<HTMLInputElement>('input[name=program]');
-const chart = new BalanceChart(element<HTMLCanvasElement>('chart'), element('chart-tooltip'), element('chart-live'));
+const chart = setupMortgageChart(element('debt-chart-card'), queueAddressUpdate);
 const updateSchedule = setupSchedule();
 const save = element<HTMLButtonElement>('save');
 const live = element('live');
@@ -232,8 +232,6 @@ function showResult() {
   message('chart-empty', hasLoan ? '' : current.kind === 'over-limit'
     ? 'График появится после уменьшения суммы кредита.'
     : 'При покупке без кредита платежей нет.');
-  element('chart-legend').hidden = !hasLoan;
-  element('base-legend').hidden = !baseline;
   updateSchedule(result?.rows ?? []);
 }
 
@@ -436,7 +434,8 @@ function syncCalculatorMode(scroll: boolean) {
 }
 
 function addressFor(route: CalculatorRoute) {
-  return route === 'affordability' ? budgetView.hash() : calculatorHash(route, state, DEFAULT_SCENARIO);
+  return route === 'affordability' ? budgetView.hash()
+    : calculatorHash(route, { ...state, debtChart: chart.mode }, { ...DEFAULT_SCENARIO, debtChart: 'balance' });
 }
 
 function destinationFor(link: HTMLAnchorElement, route: CalculatorRoute): CalculatorRoute {
@@ -474,6 +473,7 @@ function navigate(route: CalculatorRoute) {
 }
 
 function restoreScenario(params: URLSearchParams) {
+  chart.restore(params);
   const next = { ...DEFAULT_SCENARIO };
   for (const key of numericKeys) {
     const [min, max] = limits[key];

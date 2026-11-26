@@ -175,6 +175,10 @@ export interface SchedulePeriod {
   balance: number;
 }
 
+export function halfRepaidMonth(result: MortgageResult): number | undefined {
+  return result.rows.find(row => row.balance <= result.principal / 2)?.month;
+}
+
 export function summarizeSchedule(rows: readonly PaymentRow[], grouping: 'month' | 'year'): SchedulePeriod[] {
   const periods: SchedulePeriod[] = [];
   for (const row of rows) {

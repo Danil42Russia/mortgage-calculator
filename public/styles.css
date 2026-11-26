@@ -141,6 +141,12 @@ details summary:hover { color: var(--accent-dark); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { display: inline-block; width: 15px; height: 3px; border-radius: 3px; background: var(--accent); }
 #base-legend i { background: repeating-linear-gradient(to right, #9c88bf 0 4px, transparent 4px 7px); }
+.debt-chart-mode { margin: 14px 0 0; border: 0; min-width: 0; max-width: 355px; }
+.debt-chart-mode label:last-child { flex: 1.5; }
+.debt-chart-mode label span { white-space: normal; }
+.payment-legend i { width: 10px; height: 10px; background: #7447d4; }
+.payment-legend span + span i { background: #31947e; }
+.debt-chart-note { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .source-note { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 6px; padding: 0 2px; color: var(--quiet); font-size: 12px; line-height: 1.55; }
 .source-note > span { color: var(--accent-dark); }
 .source-note > a { font-weight: 650; }

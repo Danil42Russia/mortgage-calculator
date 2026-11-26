@@ -1,7 +1,8 @@
 import { calculateAffordability } from './affordability.ts';
 import type { AffordabilityInput } from './affordability.ts';
 import { calculatorHash, readChoiceParam, readNumberParam } from './calculator-uri.ts';
-import { BalanceChart, durationAxis, SeriesChart } from './chart.ts';
+import { durationAxis, SeriesChart } from './chart.ts';
+import { setupMortgageChart } from './mortgage-chart.ts';
 import { decimal, integer, money, monthWord, numberFromInput, yearWord } from './format.ts';
 import { bindMoneyGrouping, bindPercentFormatting } from './money-input.ts';
 import { calculateMortgage } from './mortgage.ts';
@@ -152,9 +153,7 @@ export function setupAffordability(
   const salaryPeriods = document.querySelectorAll<HTMLInputElement>('input[name="salary-period"]');
   const cashBar = budgetElement('cash-bar');
   const status = budgetElement('status');
-  const chart = new BalanceChart(
-    budgetElement<HTMLCanvasElement>('chart'), budgetElement('chart-tooltip'), budgetElement('chart-live'),
-  );
+  const chart = setupMortgageChart(budgetElement('debt-chart-card'), onChange);
   const salaryChart = new SeriesChart(
     budgetElement<HTMLCanvasElement>('salary-chart'), budgetElement('salary-tooltip'), budgetElement('salary-live'),
   );
@@ -332,6 +331,7 @@ export function setupAffordability(
   });
 
   function restore(params: URLSearchParams = new URLSearchParams()) {
+    chart.restore(params);
     const next = { ...defaults };
     for (const key of keys) {
       const field = fields[key];
@@ -350,5 +350,5 @@ export function setupAffordability(
   }
 
   restore();
-  return { restore, hash: () => calculatorHash('affordability', state, defaults) };
+  return { restore, hash: () => calculatorHash('affordability', { ...state, debtChart: chart.mode }, { ...defaults, debtChart: 'balance' }) };
 }

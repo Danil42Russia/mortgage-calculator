@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { calculateMortgage, summarizeSchedule } from '../src/mortgage.ts';
+import { calculateMortgage, halfRepaidMonth, summarizeSchedule } from '../src/mortgage.ts';
 import type { MortgageInput } from '../src/mortgage.ts';
 
 const loan: MortgageInput = { principal: 1_200_000, annualRate: 12, months: 12, paymentType: 'annuity' };
@@ -101,6 +101,25 @@ test('cash purchase has no mortgage schedule or fees on the loan', () => {
   assert.deepEqual(calculateMortgage({ ...loan, principal: 0 }), {
     principal: 0, rows: [], firstPayment: 0, totalInterest: 0, totalPrepayment: 0, totalInsurance: 0, totalPaid: 0,
   });
+});
+
+test('the half-repayment marker follows the first payment that clears half of the original principal', () => {
+  assert.equal(halfRepaidMonth(calculateMortgage({ ...loan, annualRate: 0 })), 6);
+  assert.equal(halfRepaidMonth(calculateMortgage(loan)), 7);
+  assert.equal(halfRepaidMonth(calculateMortgage({ ...loan, principal: 0 })), undefined);
+  const prepaid = calculateMortgage({ ...loan, prepayment: { goal: 'term', lump: { month: 2, amount: 700_000 } } });
+  assert.equal(halfRepaidMonth(prepaid), 2);
+});
+
+test('annual payment bars include early principal repayments and show only paid months of the last year', () => {
+  const result = calculateMortgage({
+    principal: 240_000, annualRate: 0, months: 24, paymentType: 'annuity', annualInsuranceRate: 1,
+    prepayment: { goal: 'term', lump: { month: 12, amount: 100_000 } },
+  });
+  const years = summarizeSchedule(result.rows, 'year');
+  assert.equal(result.rows.length, 14);
+  assert.deepEqual(years.map(({ principal, interest, payment }) => [principal, interest, payment]),
+    [[220_000, 0, 220_000], [20_000, 0, 20_000]]);
 });
 
 test('invalid inputs fail explicitly', () => {
