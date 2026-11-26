@@ -9,6 +9,11 @@ export function parseCalculatorHash(hash: string) {
   return { route, params: new URLSearchParams(question < 0 ? '' : hash.slice(question + 1)) };
 }
 
+export function budgetParamsFromHash(hash: string) {
+  const { route, params } = parseCalculatorHash(hash);
+  return route === 'affordability' ? params : new URLSearchParams();
+}
+
 export function calculatorHash<T extends object>(route: CalculatorRoute, state: T, defaults: Readonly<T>) {
   const params = new URLSearchParams();
   for (const key of Object.keys(defaults) as Array<keyof T & string>) {

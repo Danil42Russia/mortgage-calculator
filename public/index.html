@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f8f7fb">
-  <meta name="description" content="Рассчитайте ипотеку от цены квартиры или по своему доходу, накоплениям и подушке безопасности.">
+  <meta name="description" content="Рассчитайте доступную ипотеку по зарплате, накоплениям и подушке безопасности.">
   <title>Ключи — ипотечный калькулятор</title>
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
@@ -12,14 +12,12 @@
 <body>
   <header class="topbar">
     <div class="shell topbar-inner">
-      <a class="brand" href="#calculator" aria-label="Ключи — калькулятор">
+      <a class="brand" href="#affordability" aria-label="Ключи — калькулятор">
         <span class="logo" aria-hidden="true"><i></i></span>
         <span>Ключи</span>
       </a>
-      <nav aria-label="Калькуляторы">
-        <a class="nav-current" href="#calculator" aria-current="page">По цене квартиры</a>
-        <a href="#affordability">По бюджету</a>
-        <a class="nav-schedule" href="#schedule">График платежей</a>
+      <nav aria-label="Основная навигация">
+        <a class="nav-current" href="#affordability" aria-current="page">По бюджету</a>
       </nav>
       <div class="topbar-actions">
         <button class="outline-button" id="share-link" type="button" aria-label="Скопировать ссылку на расчёт"><span aria-hidden="true">↗</span><span id="share-label">Ссылка</span></button>
@@ -34,212 +32,7 @@
     <input id="share-address" type="text" aria-label="Адрес расчёта" readonly autofocus>
     <form method="dialog"><button class="outline-button" type="submit">Закрыть</button></form>
   </dialog>
-  <main class="shell" id="calculator">
-    <div class="intro">
-      <p class="tag"><span></span> Ипотека в России · 2026</p>
-      <h1>Ипотечный калькулятор</h1>
-      <p>Меняйте условия покупки квартиры и сразу смотрите, как меняется платёж.</p>
-    </div>
-    <div class="dashboard">
-      <section class="card controls" aria-labelledby="inputs-title">
-        <h2 id="inputs-title">Условия ипотеки</h2>
-        <fieldset class="presets">
-          <legend class="sr-only">Программа</legend>
-          <div class="segmented">
-            <label><input type="radio" name="program" value="market" checked><span>Рыночная</span></label>
-            <label><input type="radio" name="program" value="family"><span>Семейная</span></label>
-            <label><input type="radio" name="program" value="custom"><span>Своя ставка</span></label>
-          </div>
-        </fieldset>
-        <div class="family-options" id="family-options" hidden>
-          <div class="field-grid">
-            <label class="mini-field">Регион покупки
-              <select id="region">
-                <option value="other">Другие регионы</option>
-                <option value="capital">Москва, Петербург и области</option>
-              </select>
-            </label>
-            <label class="mini-field">Число детей
-              <select id="children"><option>1</option><option>2</option><option>3</option><option>4</option><option value="5">5 и более</option></select>
-            </label>
-          </div>
-          <p class="hint" id="family-note"></p>
-        </div>
-        <div class="control-fields">
-          <div class="slider-field">
-            <label for="price">Стоимость квартиры</label>
-            <div class="input-frame"><input id="price" type="text" inputmode="numeric" value="8 500 000"><span>₽</span></div>
-            <input id="price-slider" type="range" min="500000" max="40000000" step="10000" value="8500000" aria-label="Стоимость квартиры, рублей">
-            <div class="range-limits"><span>500 тыс. ₽</span><span>40 млн ₽</span></div>
-          </div>
-          <div class="slider-field">
-            <div class="label-row">
-              <label for="down">Первоначальный взнос</label>
-              <button class="unit-toggle" type="button" id="down-toggle" aria-pressed="false" aria-label="Вводить первоначальный взнос в процентах">30%</button>
-            </div>
-            <div class="input-frame"><input id="down" type="text" inputmode="numeric" value="2 550 000"><span id="down-unit">₽</span></div>
-            <input id="down-slider" type="range" min="0" max="100" step="0.1" value="30" aria-label="Первоначальный взнос, процентов">
-            <div class="range-limits"><span>0%</span><span>100%</span></div>
-          </div>
-          <div class="slider-field">
-            <label for="rate">Процентная ставка</label>
-            <div class="input-frame"><input id="rate" type="text" inputmode="decimal" value="18"><span>% годовых</span></div>
-            <input id="rate-slider" type="range" min="0" max="40" step="0.1" value="18" aria-label="Процентная ставка, годовых">
-            <div class="range-limits"><span>0%</span><span>40%</span></div>
-          </div>
-          <div class="slider-field">
-            <label for="years">Срок кредита</label>
-            <div class="input-frame"><input id="years" type="text" inputmode="numeric" value="20"><span id="years-unit">лет</span></div>
-            <input id="years-slider" type="range" min="1" max="40" step="1" value="20" aria-label="Срок кредита, лет">
-            <div class="range-limits"><span>1 год</span><span>40 лет</span></div>
-          </div>
-        </div>
-        <div class="future-options" id="family-future" hidden>
-          <label class="mini-field" for="familyRate">Ставка с 16-го года, %
-            <input id="familyRate" type="text" inputmode="decimal" aria-describedby="family-rate-hint">
-          </label>
-          <p class="hint" id="family-rate-hint">По умолчанию ставка увеличивается на 4 п. п. Фактическая ставка зависит от договора и ключевой ставки в конце льготного периода.</p>
-        </div>
-        <div class="extensions">
-          <details id="extra-details">
-            <summary><i class="mini-icon" aria-hidden="true">+</i><span>Досрочное погашение</span><span class="detail-dot" id="extra-dot" hidden></span></summary>
-            <div class="detail-content">
-              <label class="mini-field">После досрочного взноса
-                <select id="goal"><option value="term">Сокращать срок</option><option value="payment">Уменьшать платёж</option></select>
-              </label>
-              <div class="field-grid extra-fields">
-                <label class="mini-field">Каждый месяц, ₽<input id="extra" type="text" inputmode="numeric" value="0"></label>
-                <label class="mini-field">Начиная с месяца<input id="extraStart" type="text" inputmode="numeric" value="1"></label>
-                <label class="mini-field">Разовый взнос, ₽<input id="lump" type="text" inputmode="numeric" value="0"></label>
-                <label class="mini-field">В каком месяце<input id="lumpMonth" type="text" inputmode="numeric" value="12"></label>
-                <label class="mini-field field-span">Подушка для погашения остатка, ₽<input id="payoffReserve" type="text" inputmode="numeric" value="0" aria-describedby="payoff-reserve-hint"></label>
-              </div>
-              <p class="hint" id="payoff-reserve-hint">Когда подушки хватит на весь остаток долга после очередного платежа, кредит закроется.</p>
-              <p class="hint" id="extra-note">Досрочный взнос списывается после планового платежа.</p>
-            </div>
-          </details>
-          <details id="more-details">
-            <summary><i class="mini-icon settings-icon" aria-hidden="true">≡</i><span>Дополнительные параметры</span></summary>
-            <div class="detail-content">
-              <label class="mini-field">Тип платежей
-                <select id="type"><option value="annuity">Аннуитетные</option><option value="declining">Дифференцированные</option></select>
-              </label>
-              <div class="field-grid">
-                <label class="mini-field">Страховка в год, %<input id="insurance" type="text" inputmode="decimal" value="0"></label>
-                <label class="mini-field">Расходы при покупке, ₽<input id="fees" type="text" inputmode="numeric" value="0"></label>
-                <label class="mini-field">Доход в месяц, ₽<input id="income" type="text" inputmode="numeric" value="0"></label>
-                <label class="mini-field">Другие кредиты в месяц, ₽<input id="debts" type="text" inputmode="numeric" value="0"></label>
-              </div>
-              <label class="check-line" id="refinance-toggle"><input id="change" type="checkbox"> Изменить ставку в течение срока</label>
-              <div class="field-grid" id="refinance-options" hidden>
-                <label class="mini-field">С месяца<input id="changeMonth" type="text" inputmode="numeric" value="25"></label>
-                <label class="mini-field">Новая ставка, %<input id="changeRate" type="text" inputmode="decimal" value="14"></label>
-                <p class="hint field-span" id="change-note" hidden>Изменение ставки за пределами срока кредита.</p>
-              </div>
-            </div>
-          </details>
-        </div>
-      </section>
-      <div class="results-column">
-        <section class="result-card" aria-labelledby="payment-title">
-          <div class="result-inner">
-            <div class="payment-head">
-              <div id="payment-title">Ежемесячный платёж</div>
-              <button class="save" id="save" type="button"><span aria-hidden="true">+</span> <span class="save-label">Сохранить сценарий</span></button>
-            </div>
-            <div class="payment-value"><strong id="payment">91 827 ₽</strong><span id="payment-unit">/ мес.</span></div>
-            <p class="payment-note" id="payment-note">Аннуитетный платёж · 18% годовых</p>
-            <div class="result-stats">
-              <div><span>Сумма кредита</span><strong id="principal">5 950 000 ₽</strong></div>
-              <div><span>Переплата по процентам</span><strong id="interest">16 088 479 ₽</strong></div>
-              <div><span>Всего банку</span><strong id="total">22 038 479 ₽</strong></div>
-            </div>
-          </div>
-        </section>
-        <p class="status-banner" id="result-status" role="status" hidden></p>
-        <div class="result-notes card" id="result-notes" hidden>
-          <div id="future-summary" hidden></div>
-          <div id="saving-summary" hidden></div>
-          <div id="ownership-summary" hidden></div>
-          <div id="income-summary" hidden></div>
-        </div>
-        <section class="card chart-card" id="debt-chart-card" aria-labelledby="chart-title">
-          <div class="chart-head">
-            <div>
-              <h2 id="chart-title">Как уменьшается долг</h2>
-              <p class="debt-chart-caption">Первый платёж в расчёте — январь 2026 года.</p>
-            </div>
-            <a class="outline-button" href="#schedule">График платежей <span aria-hidden="true">↗</span></a>
-          </div>
-          <fieldset class="debt-chart-mode segmented" aria-label="Вид ипотечного графика">
-            <label><input type="radio" name="debt-chart-mode" value="balance" checked><span>Остаток долга</span></label>
-            <label><input type="radio" name="debt-chart-mode" value="payments"><span>Из чего состоит платёж</span></label>
-          </fieldset>
-          <div class="chart-wrap" id="chart-wrap">
-            <canvas id="chart" tabindex="0" aria-label="Остаток долга. Используйте стрелки влево и вправо для просмотра значений."></canvas>
-            <div id="chart-empty" class="chart-empty" hidden>График появится, когда будет сумма кредита.</div>
-            <div class="chart-tooltip" id="chart-tooltip" hidden></div>
-            <div id="chart-live" class="sr-only" role="status"></div>
-          </div>
-          <div class="legend" id="chart-legend"><span><i></i> Остаток долга</span><span id="base-legend" hidden><i></i> Без досрочных взносов</span></div>
-          <div class="legend payment-legend" hidden><span><i></i> Основной долг</span><span><i></i> Проценты</span></div>
-          <p class="hint debt-chart-note" id="chart-note" hidden></p>
-        </section>
-        <section class="card chart-card bank-payments" id="bank-payments" aria-labelledby="bank-payments-title" hidden>
-          <h2 id="bank-payments-title">Сколько отдадим банку</h2>
-        </section>
-        <p class="source-note" id="market-note"><span aria-hidden="true">ⓘ</span> 18% — средняя ставка по выданным рыночным ипотекам в сентябре 2026 года. <a href="https://www.cbr.ru/Collection/Collection/File/62505/mortgage_lending_market_2609_77.pdf" target="_blank" rel="noopener">Банк России</a></p>
-      </div>
-    </div>
-    <div class="sr-only" role="status" id="live"></div>
-    <section class="card below-card" id="comparison" aria-labelledby="comparison-title" hidden>
-      <div class="section-head">
-        <div><h2 id="comparison-title">Сравнение сценариев</h2><p>До трёх вариантов. Сохраняются в этом браузере.</p></div>
-      </div>
-      <div class="scenario-grid" id="scenarios"></div>
-    </section>
-    <section class="card below-card" id="schedule" aria-labelledby="schedule-title">
-      <div class="section-head">
-        <div><h2 id="schedule-title">График платежей</h2><p id="schedule-caption">Основной долг и проценты за каждый год кредита.</p></div>
-        <div class="section-actions">
-          <div class="segmented" role="group" aria-label="Период графика">
-            <button type="button" id="by-year" aria-pressed="true">По годам</button>
-            <button type="button" id="by-month" aria-pressed="false">По месяцам</button>
-          </div>
-          <button type="button" class="outline-button" id="export"><span aria-hidden="true">↓</span> Скачать CSV</button>
-        </div>
-      </div>
-      <div class="table-wrap" tabindex="0" role="region" aria-label="Таблица графика платежей">
-        <table>
-          <thead><tr><th scope="col" id="period-heading">Год</th><th scope="col">Платежи, ₽</th><th scope="col">В основной долг, ₽</th><th scope="col">Проценты, ₽</th><th scope="col">Досрочно, ₽</th><th scope="col">Страховка, ₽</th><th scope="col">Остаток долга, ₽</th></tr></thead>
-          <tbody id="schedule-rows"></tbody>
-        </table>
-      </div>
-      <div class="pagination" id="pagination">
-        <span id="page-label"></span>
-        <div>
-          <button type="button" class="outline-button" id="previous" aria-label="Предыдущая страница">←</button>
-          <button type="button" class="outline-button" id="next" aria-label="Следующая страница">→</button>
-        </div>
-      </div>
-    </section>
-    <section class="card below-card methodology" aria-labelledby="method-title">
-      <h2 id="method-title">Как считается ипотека</h2>
-      <details>
-        <summary>Платежи, проценты и расходы</summary>
-        <p>Сумма кредита равна цене квартиры за вычетом первоначального взноса. Для каждого месяца проценты начисляются на остаток долга по годовой ставке, делённой на 12. При аннуитете плановый платёж обычно одинаковый, а при дифференцированном графике плановая часть основного долга распределена равномерно.</p>
-        <p>Страховка начисляется в начале каждого года кредита на текущий остаток. Платёж в итогах — первый плановый платёж. Сумма «Всего банку» включает основной долг, проценты и досрочные взносы. В расчёте расходов на квартиру также учитываются первоначальный взнос, страховка и введённые расходы при покупке.</p>
-        <p>График рассчитан по месяцам. У банка могут отличаться даты, правила округления и начисление процентов по дням. Полную стоимость кредита (ПСК) смотрите в договоре.</p>
-      </details>
-      <details>
-        <summary>Что изменилось в семейной ипотеке с 1 октября 2026 года?</summary>
-        <p>Ставка и лимит для покупки квартиры зависят от региона и числа детей. В шаблоне используются базовые условия для семей, где хотя бы один ребёнок младше 7 лет. Применимость программы и условия по конкретной квартире уточняйте у банка.</p>
-        <p>Льготная ставка действует до 15 лет. Для квартиры верхний предел дальнейшей ставки — меньшее из двух значений: ставка в начале договора плюс 4 п. п. или ключевая ставка в конце льготного периода плюс 3 п. п.</p>
-        <p><a href="https://t.me/minfin/8890" target="_blank" rel="noopener">Условия Минфина</a> · <a href="https://cbr.ru/press/regevent/?id=71758" target="_blank" rel="noopener">Разъяснение Банка России</a></p>
-      </details>
-    </section>
-  </main>
-  <main class="shell" id="affordability" hidden>
+  <main class="shell" id="affordability">
     <div class="intro">
       <p class="tag"><span></span> Ипотека в России · 2026</p>
       <h1>Сколько ипотеки я могу взять?</h1>
@@ -357,7 +150,7 @@
           </dl>
           <p class="hint budget-cash-hint" id="budget-costs-note" hidden></p>
           <div class="budget-detail-link" id="budget-detail-link" hidden>
-            <button class="outline-button" id="budget-open-schedule" type="button">Открыть таблицу платежей <span aria-hidden="true">↗</span></button>
+            <button class="outline-button" id="budget-open-schedule" type="button" aria-controls="budget-schedule">Открыть таблицу платежей <span aria-hidden="true">↓</span></button>
           </div>
         </section>
         <p class="source-note"><span aria-hidden="true">ⓘ</span> Стартовые 18% — средняя ставка по рыночным выдачам за сентябрь 2026 года. <a href="https://www.cbr.ru/statistics/bank_sector/mortgage/indicator_mortgage/0926/" target="_blank" rel="noopener">Банк России</a></p>
@@ -403,6 +196,31 @@
         <p class="hint salary-note">Каждый год прогноза использует шкалу НДФЛ 2026 года для обычной зарплаты налогового резидента РФ без вычетов. <a href="https://www.nalog.gov.ru/rn64/news/activities_fts/16639359/" target="_blank" rel="noopener">Шкала НДФЛ ФНС</a></p>
       </div>
     </section>
+    <section class="card below-card" id="budget-schedule" aria-labelledby="schedule-title" hidden>
+      <div class="section-head">
+        <div><h2 id="schedule-title" tabindex="-1">График платежей</h2><p id="schedule-caption">Основной долг и проценты за каждый год кредита.</p></div>
+        <div class="section-actions">
+          <div class="segmented" role="group" aria-label="Период графика">
+            <button type="button" id="by-year" aria-pressed="true">По годам</button>
+            <button type="button" id="by-month" aria-pressed="false">По месяцам</button>
+          </div>
+          <button type="button" class="outline-button" id="export"><span aria-hidden="true">↓</span> Скачать CSV</button>
+        </div>
+      </div>
+      <div class="table-wrap" tabindex="0" role="region" aria-label="Таблица графика платежей">
+        <table>
+          <thead><tr><th scope="col" id="period-heading">Год</th><th scope="col">Платежи, ₽</th><th scope="col">В основной долг, ₽</th><th scope="col">Проценты, ₽</th><th scope="col">Досрочно, ₽</th><th scope="col">Страховка, ₽</th><th scope="col">Остаток долга, ₽</th></tr></thead>
+          <tbody id="schedule-rows"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagination">
+        <span id="page-label"></span>
+        <div>
+          <button type="button" class="outline-button" id="previous" aria-label="Предыдущая страница">←</button>
+          <button type="button" class="outline-button" id="next" aria-label="Следующая страница">→</button>
+        </div>
+      </div>
+    </section>
     <section class="card below-card methodology" aria-labelledby="budget-method-title">
       <h2 id="budget-method-title">Как считается доступная ипотека</h2>
       <details>
@@ -417,7 +235,7 @@
     </section>
     <div class="sr-only" id="budget-live" role="status"></div>
   </main>
-  <footer class="shell footer"><span class="footer-brand">Ключи</span><span>Ипотечный калькулятор · Россия, 2026</span><a id="back-to-top" href="#calculator">Наверх ↑</a></footer>
+  <footer class="shell footer"><span class="footer-brand">Ключи</span><span>Ипотечный калькулятор · Россия, 2026</span><a id="back-to-top" href="#affordability">Наверх ↑</a></footer>
   <template id="bank-payments-template">
     <dl class="bank-totals">
       <div><dt>Выплаты за весь срок</dt><dd data-total></dd></div>

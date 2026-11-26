@@ -197,16 +197,11 @@ tbody tr:hover { background: #faf8fe; }
   .chart-head h2 { font-size: 18px; }
 }
 
-@media (max-width: 800px) {
-  .topbar .nav-schedule { display: none; }
-}
-
 @media (max-width: 680px) {
   .shell { width: calc(100% - 28px); }
   .topbar-inner { min-height: 56px; gap: 15px; }
   .logo { width: 31px; height: 31px; }
   .brand { font-size: 18px; }
-  nav { display: none; }
   .intro { padding: 29px 0 21px; }
   .intro h1 { max-width: 16ch; }
   .intro > p:last-child { font-size: 14px; }
@@ -291,7 +286,6 @@ tbody tr:hover { background: #faf8fe; }
 @media (max-width: 680px) {
   .topbar-inner { flex-wrap: wrap; padding-top: 8px; gap: 0 15px; }
   .topbar nav { display: flex; order: 3; min-height: 36px; width: 100%; gap: 18px; white-space: nowrap; }
-  .topbar .nav-schedule { display: none; }
   .budget-dashboard .cash-card { order: 2; padding-inline: 17px; }
   .budget-result .payment-head { min-height: 18px; }
   .cash-items { font-size: 13px; }

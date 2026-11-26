@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { calculatorHash, parseCalculatorHash, readChoiceParam, readNumberParam } from '../src/calculator-uri.ts';
+import { budgetParamsFromHash, calculatorHash, parseCalculatorHash, readChoiceParam, readNumberParam } from '../src/calculator-uri.ts';
 import { DEFAULT_SCENARIO } from '../src/scenario.ts';
 
 test('a forward calculation preserves its route and edited options', () => {
@@ -39,6 +39,14 @@ test('bare links and defaults keep normal calculator routes', () => {
   assert.equal(parseCalculatorHash('').route, 'calculator');
   assert.equal(parseCalculatorHash('#unknown').route, 'calculator');
   assert.equal(parseCalculatorHash('#affordability').route, 'affordability');
+});
+
+test('the budget screen restores shared budget links and opens defaults for legacy links', () => {
+  const params = 'salary=350000&savings=0&years=15&useReserve=true';
+  assert.equal(budgetParamsFromHash('#affordability?' + params).toString(), params);
+  for (const hash of ['', '#affordability', '#calculator?price=8000000&years=30', '#schedule?years=30', '#unknown?years=30']) {
+    assert.equal(budgetParamsFromHash(hash).size, 0);
+  }
 });
 
 test('shared numbers follow the same bounds and precision as the form', () => {

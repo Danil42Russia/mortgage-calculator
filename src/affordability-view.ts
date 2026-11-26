@@ -9,6 +9,7 @@ import { calculateReservePayoff } from './mortgage.ts';
 import { estimateSalary2026, projectSalary } from './salary.ts';
 import type { SalaryBalance, SalaryEstimate, SalaryMonth } from './salary.ts';
 import { MARKET_RATE } from './scenario.ts';
+import { setupSchedule } from './schedule-table.ts';
 
 type BudgetState = Omit<AffordabilityInput, 'months' | 'monthlyIncome' | 'livingCosts' | 'monthlyDebts' | 'monthlyRemainder'> & {
   salary: number | null;
@@ -17,16 +18,6 @@ type BudgetState = Omit<AffordabilityInput, 'months' | 'monthlyIncome' | 'living
   useReserve: boolean;
   years: number;
   purchaseCosts: number;
-};
-export type BudgetScenario = {
-  price: number;
-  down: number;
-  rate: number;
-  years: number;
-  income: number;
-  debts: number;
-  fees: number;
-  payoffReserve: number;
 };
 
 const defaults: Readonly<BudgetState> = {
@@ -143,13 +134,10 @@ function showSalaryChart(chart: SeriesChart, balances: SalaryBalance[], period: 
   });
 }
 
-export function setupAffordability(
-  canShowSchedule: (scenario: BudgetScenario) => boolean,
-  showSchedule: (scenario: BudgetScenario) => void,
-  onChange: () => void,
-) {
+export function setupAffordability(onChange: () => void) {
   let state: BudgetState = { ...defaults };
-  let scenario: BudgetScenario | null = null;
+  const updateSchedule = setupSchedule();
+  const scheduleSection = budgetElement('schedule');
   const reserveButtons = document.querySelectorAll<HTMLButtonElement>('[data-reserve-months]');
   const useReserveInput = budgetElement<HTMLInputElement>('use-reserve');
   const incomeModes = document.querySelectorAll<HTMLInputElement>('input[name="budget-income-mode"]');
@@ -268,17 +256,9 @@ export function setupAffordability(
       }
     }
 
-    scenario = quote ? {
-      price: quote.price,
-      down: quote.downPayment,
-      rate: state.annualRate,
-      years,
-      income: monthlyIncome,
-      debts: 0,
-      fees: purchaseCosts,
-      payoffReserve,
-    } : null;
-    budgetElement('detail-link').hidden = !scenario || !canShowSchedule(scenario);
+    scheduleSection.hidden = !schedule;
+    budgetElement('detail-link').hidden = !schedule;
+    updateSchedule(schedule?.rows ?? []);
     onChange();
     return quote;
   }
@@ -351,7 +331,8 @@ export function setupAffordability(
   });
 
   budgetElement('open-schedule').addEventListener('click', () => {
-    if (scenario && canShowSchedule(scenario)) showSchedule(scenario);
+    scheduleSection.querySelector('h2')!.focus({ preventScroll: true });
+    scheduleSection.scrollIntoView();
   });
 
   function restore(params: URLSearchParams = new URLSearchParams()) {
@@ -375,6 +356,5 @@ export function setupAffordability(
     render();
   }
 
-  restore();
   return { restore, hash: () => calculatorHash('affordability', { ...state, debtChart: chart.mode }, { ...defaults, debtChart: 'balance' }) };
 }
