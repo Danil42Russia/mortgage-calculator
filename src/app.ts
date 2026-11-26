@@ -1,5 +1,8 @@
 import { BalanceChart } from './chart.ts';
+import { setupAffordability } from './affordability-view.ts';
+import type { BudgetScenario } from './affordability-view.ts';
 import { decimal, formatTerm, integer, money, numberFromInput, yearWord } from './format.ts';
+import { bindMoneyGrouping } from './money-input.ts';
 import { DEFAULT_SCENARIO, evaluateScenario, FAMILY_MONTHS, familyTerms, MARKET_RATE } from './scenario.ts';
 import type { Program, Scenario } from './scenario.ts';
 import { setupSchedule } from './schedule-table.ts';
@@ -36,6 +39,7 @@ const limits = {
 type NumericKey = keyof typeof limits;
 const numericKeys = Object.keys(limits) as NumericKey[];
 const fractional = new Set<NumericKey>(['rate', 'changeRate', 'familyRate', 'insurance']);
+const moneyFields = new Set<NumericKey>(['price', 'down', 'extra', 'lump', 'fees', 'income', 'debts']);
 const sliderKeys = ['price', 'down', 'rate', 'years'] as const;
 const storageKey = 'kluchi-scenarios-v1';
 const maxScenarios = 3;
@@ -257,6 +261,7 @@ function setNumeric(key: NumericKey, value: number, fromSlider = false) {
 
 for (const key of numericKeys) {
   const input = element<HTMLInputElement>(key);
+  if (moneyFields.has(key)) bindMoneyGrouping(input, () => !percentInput(key));
   input.addEventListener('input', () => {
     const value = numberFromInput(input.value, percentInput(key));
     if (!Number.isFinite(value)) {
@@ -381,7 +386,53 @@ save.addEventListener('click', () => {
   element('comparison').scrollIntoView({ block: 'nearest' });
 });
 
+const priceCalculator = element('calculator');
+const budgetCalculator = element('affordability');
+const priceNavigation = document.querySelector<HTMLAnchorElement>('nav a[href="#calculator"]')!;
+const budgetNavigation = document.querySelector<HTMLAnchorElement>('nav a[href="#affordability"]')!;
+const scheduleNavigation = document.querySelector<HTMLAnchorElement>('.nav-schedule')!;
+
+function canShowBudgetSchedule(scenario: BudgetScenario) {
+  return (Object.keys(scenario) as Array<keyof BudgetScenario>).every(key => {
+    const [min, max] = limits[key];
+    return scenario[key] >= min && scenario[key] <= max;
+  });
+}
+
+const resetBudget = setupAffordability(canShowBudgetSchedule, scenario => {
+  state = { ...DEFAULT_SCENARIO, ...scenario, program: scenario.rate === MARKET_RATE ? 'market' : 'custom' };
+  element<HTMLDetailsElement>('extra-details').open = false;
+  element<HTMLDetailsElement>('more-details').open = false;
+  render();
+  window.location.hash = 'schedule';
+});
+
+function syncCalculatorMode() {
+  const byBudget = window.location.hash === '#affordability';
+  const changed = priceCalculator.hidden !== byBudget;
+  priceCalculator.hidden = byBudget;
+  budgetCalculator.hidden = !byBudget;
+  scheduleNavigation.hidden = byBudget;
+  priceNavigation.classList.toggle('nav-current', !byBudget);
+  budgetNavigation.classList.toggle('nav-current', byBudget);
+  priceNavigation.removeAttribute('aria-current');
+  budgetNavigation.removeAttribute('aria-current');
+  (byBudget ? budgetNavigation : priceNavigation).setAttribute('aria-current', 'page');
+  element<HTMLAnchorElement>('back-to-top').hash = byBudget ? 'affordability' : 'calculator';
+
+  if (changed && window.location.hash === '#schedule') {
+    element('schedule').scrollIntoView();
+  } else if (changed) {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+}
+
 element('reset').addEventListener('click', () => {
+  if (!budgetCalculator.hidden) {
+    resetBudget();
+    element('budget-live').textContent = 'Условия расчёта по бюджету сброшены';
+    return;
+  }
   state = { ...DEFAULT_SCENARIO };
   element<HTMLDetailsElement>('extra-details').open = false;
   element<HTMLDetailsElement>('more-details').open = false;
@@ -391,3 +442,5 @@ element('reset').addEventListener('click', () => {
 
 showComparison();
 render();
+syncCalculatorMode();
+window.addEventListener('hashchange', syncCalculatorMode);

@@ -39,6 +39,7 @@ export interface MortgageResult {
 const toCents = (rubles: number) => Math.round(rubles * 100);
 const toRubles = (cents: number) => cents / 100;
 const monthlyRate = (annualRate: number) => annualRate / 1200;
+export const MAX_MORTGAGE_PRINCIPAL = 1e11;
 
 function scheduledAmount(balance: number, months: number, rate: number, type: PaymentType) {
   if (type === 'declining' || rate === 0) {
@@ -51,6 +52,15 @@ function scheduledAmount(balance: number, months: number, rate: number, type: Pa
 function principalForMonth(balance: number, amount: number, rate: number, type: PaymentType) {
   const interest = Math.round(balance * rate);
   return type === 'annuity' ? Math.max(0, amount - interest) : amount;
+}
+
+export function firstAnnuityPayment(principal: number, annualRate: number, months: number) {
+  const balance = toCents(principal);
+  if (balance <= 0) return 0;
+  const rate = monthlyRate(annualRate);
+  const amount = scheduledAmount(balance, months, rate, 'annuity');
+  const principalDue = months === 1 ? balance : Math.min(balance, principalForMonth(balance, amount, rate, 'annuity'));
+  return toRubles(principalDue + Math.round(balance * rate));
 }
 
 function remainingTerm(balance: number, amount: number, rate: number, type: PaymentType, cap: number) {
@@ -72,7 +82,7 @@ function requireNumber(value: number, label: string, minimum: number, maximum: n
 /** Model end-of-month payments. Amounts are input and returned in rubles, rates in percent. */
 export function calculateMortgage(input: MortgageInput): MortgageResult {
   const { principal, annualRate, months, paymentType, rateChange, prepayment, annualInsuranceRate = 0 } = input;
-  requireNumber(principal, 'Principal', 0, 1e11);
+  requireNumber(principal, 'Principal', 0, MAX_MORTGAGE_PRINCIPAL);
   requireNumber(annualRate, 'Annual rate', 0, 100);
   requireNumber(months, 'Number of months', 1, 1200, true);
   requireNumber(annualInsuranceRate, 'Insurance rate', 0, 100);

@@ -105,7 +105,7 @@ details summary:hover { color: var(--accent-dark); }
 .result-card::before, .result-card::after { content: ""; position: absolute; z-index: -1; right: -75px; top: -143px; width: 340px; height: 340px; border: 1px solid #dfc5ff25; border-radius: 68px; transform: rotate(42deg); }
 .result-card::after { right: -108px; top: -130px; width: 346px; height: 346px; }
 .payment-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; }
-#payment-title { color: #eee1ff; font-size: 11px; font-weight: 740; letter-spacing: .12em; text-transform: uppercase; }
+#payment-title, .result-kicker { color: #eee1ff; font-size: 11px; font-weight: 740; letter-spacing: .12em; text-transform: uppercase; }
 .save { display: flex; align-items: center; gap: 5px; padding: 6px 10px; color: #fff; background: #ffffff10; border: 1px solid #ffffff3b; border-radius: 8px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .save > span:first-child { font-size: 15px; line-height: 1; }
 .save:hover:enabled { background: #ffffff24; }
@@ -211,3 +211,55 @@ tbody tr:hover { background: #faf8fe; }
 
 .input-frame:has(input[aria-invalid="true"]), .mini-field input[aria-invalid="true"] { border-color: #b85b35; }
 .input-frame input:disabled, input[type=range]:disabled { opacity: .65; cursor: default; }
+
+.budget-controls { padding-bottom: 5px; }
+.budget-intro { margin-top: 6px; }
+.budget-inputs { display: grid; gap: 11px; margin-top: 18px; }
+.budget-inputs .hint { margin-top: -5px; }
+.budget-income-mode { border: 0; margin: 0; padding: 0; min-width: 0; }
+.budget-income-feedback { display: grid; justify-items: start; gap: 7px; }
+.budget-controls .field-grid .mini-field { display: flex; flex-direction: column; justify-content: space-between; }
+.budget-field { display: block; font-size: 13px; font-weight: 670; }
+.budget-field .input-frame { margin-top: 6px; }
+.budget-field .input-frame > span { font-weight: 400; }
+.budget-reserve { min-width: 0; margin: 19px 0 8px; padding: 11px 12px; border: 1px solid #e8dff8; border-radius: 11px; background: #f8f5fe; }
+.budget-reserve legend { padding: 0 5px; font-size: 14px; font-weight: 720; color: var(--accent-dark); }
+.budget-reserve .hint { margin-top: 7px; }
+.budget-reserve-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 9px; }
+.budget-reserve-controls .segmented { background: #eee8f7; }
+.budget-reserve-controls button { padding-inline: 9px; }
+.budget-terms { margin-top: 15px; }
+.cash-card { padding: 20px 22px 17px; }
+.cash-total { color: var(--accent-dark); font-size: clamp(18px, 2.4vw, 27px); letter-spacing: -.035em; white-space: nowrap; }
+.cash-bar { display: flex; overflow: hidden; gap: 3px; height: 10px; margin-top: 17px; border-radius: 6px; }
+.cash-bar span { flex: 1 1 0; min-width: 0; background: #7447d4; }
+.cash-bar span:nth-child(2) { background: #31947e; }
+.cash-items { display: grid; gap: 9px; margin: 15px 0 2px; font-size: 14px; line-height: 1.35; }
+.cash-items > div { display: flex; justify-content: space-between; align-items: center; gap: 9px; }
+.cash-items dt { display: flex; align-items: center; gap: 7px; color: var(--muted); }
+.cash-items dd { margin: 0; white-space: nowrap; font-weight: 710; font-variant-numeric: tabular-nums; }
+.cash-items i { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 3px; background: #7447d4; }
+.cash-items div:nth-child(2) i { background: #31947e; }
+.budget-cash-hint { margin-top: 12px; }
+.budget-detail-link { margin-top: 15px; padding-top: 13px; border-top: 1px solid var(--line); }
+.salary-average { display: grid; gap: 5px; text-align: right; }
+.salary-average strong { color: var(--accent-dark); font-size: 21px; line-height: 1; white-space: nowrap; }
+.salary-average span { color: var(--quiet); font-size: 12px; }
+.salary-card th:first-child { position: sticky; left: 0; }
+.salary-card tbody th { border-top: 1px solid #f1edf7; background: #fff; color: var(--ink); }
+.salary-card tfoot { border-top: 1px solid var(--line); background: #f5f2fb; font-weight: 700; }
+.salary-card td.salary-deficit { color: #9b3d2c; }
+.salary-status { margin-top: 13px; }
+.salary-scroll-hint { display: none; margin-top: 10px; }
+.salary-note { margin-top: 11px; }
+
+@media (max-width: 680px) {
+  .topbar-inner { flex-wrap: wrap; padding-top: 8px; gap: 0 15px; }
+  .topbar nav { display: flex; order: 3; min-height: 36px; width: 100%; gap: 18px; white-space: nowrap; }
+  .topbar .nav-schedule { display: none; }
+  .budget-dashboard .cash-card { order: 2; padding-inline: 17px; }
+  .budget-result .payment-head { min-height: 18px; }
+  .cash-items { font-size: 13px; }
+  .salary-average { text-align: left; }
+  .salary-scroll-hint { display: block; }
+}

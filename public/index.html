@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f8f7fb">
-  <meta name="description" content="Рассчитайте ипотеку на квартиру, сравните сценарии и посмотрите, как досрочные платежи меняют график.">
+  <meta name="description" content="Рассчитайте ипотеку от цены квартиры или по своему доходу, накоплениям и подушке безопасности.">
   <title>Ключи — ипотечный калькулятор</title>
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
@@ -16,9 +16,10 @@
         <span class="logo" aria-hidden="true"><i></i></span>
         <span>Ключи</span>
       </a>
-      <nav aria-label="Разделы">
-        <a class="nav-current" href="#calculator">Калькулятор</a>
-        <a href="#schedule">График платежей</a>
+      <nav aria-label="Калькуляторы">
+        <a class="nav-current" href="#calculator" aria-current="page">По цене квартиры</a>
+        <a href="#affordability">По бюджету</a>
+        <a class="nav-schedule" href="#schedule">График платежей</a>
       </nav>
       <button class="reset" id="reset" type="button"><span aria-hidden="true">↺</span> Сбросить</button>
     </div>
@@ -217,6 +218,140 @@
       </details>
     </section>
   </main>
-  <footer class="shell footer"><span class="footer-brand">Ключи</span><span>Ипотечный калькулятор · Россия, 2026</span><a href="#calculator">Наверх ↑</a></footer>
+  <main class="shell" id="affordability" hidden>
+    <div class="intro">
+      <p class="tag"><span></span> Ипотека в России · 2026</p>
+      <h1>Сколько ипотеки я могу взять?</h1>
+      <p>Оцените сумму кредита по зарплате и накоплениям. Подушка на случай ЧП остаётся у вас.</p>
+    </div>
+    <div class="dashboard budget-dashboard">
+      <section class="card controls budget-controls" aria-labelledby="budget-input-title">
+        <h2 id="budget-input-title">Ваши деньги</h2>
+        <p class="hint budget-intro">Для одного заёмщика. Подставьте свои суммы вместо примера.</p>
+        <div class="budget-inputs">
+          <fieldset class="budget-income-mode">
+            <legend class="sr-only">Как указана зарплата</legend>
+            <div class="segmented">
+              <label><input type="radio" name="budget-income-mode" value="net" checked><span>На руки</span></label>
+              <label><input type="radio" name="budget-income-mode" value="gross"><span>До НДФЛ</span></label>
+            </div>
+          </fieldset>
+          <label class="budget-field" for="budget-income"><span id="budget-income-label">Средняя зарплата на руки</span>
+            <span class="input-frame"><input id="budget-income" type="text" inputmode="numeric" aria-describedby="budget-income-hint"><span>₽/мес.</span></span>
+          </label>
+          <div class="budget-income-feedback">
+            <p class="hint" id="budget-income-hint">Если сумма меняется, сложите выплаты после НДФЛ за 12 месяцев и разделите на 12.</p>
+            <button class="outline-button" id="budget-open-salary" type="button" hidden>Посмотреть по месяцам <span aria-hidden="true">↓</span></button>
+          </div>
+          <label class="budget-field" for="budget-savings">Накопления на сегодня
+            <span class="input-frame"><input id="budget-savings" type="text" inputmode="numeric" placeholder="Сколько есть сейчас" aria-describedby="budget-savings-hint"><span>₽</span></span>
+          </label>
+          <p class="hint" id="budget-savings-hint">Пустое поле покажет, сколько нужно накопить для кредита по доходу.</p>
+          <div class="field-grid">
+            <label class="mini-field" for="budget-living">Расходы на жизнь, ₽/мес.
+              <input id="budget-living" type="text" inputmode="numeric" aria-describedby="budget-living-hint">
+            </label>
+            <label class="mini-field" for="budget-debts">Другие кредиты, ₽/мес.
+              <input id="budget-debts" type="text" inputmode="numeric">
+            </label>
+          </div>
+          <p class="hint" id="budget-living-hint">Укажите расходы после переезда, без ипотеки и других кредитов.</p>
+        </div>
+        <fieldset class="budget-reserve">
+          <legend>Подушка на ипотеку</legend>
+          <div class="budget-reserve-controls">
+            <label class="mini-field" for="budget-reserve-months">На сколько месяцев
+              <input id="budget-reserve-months" type="text" inputmode="numeric" aria-describedby="budget-reserve-hint">
+            </label>
+            <div class="segmented" role="group" aria-label="Подушка на 3, 6 или 12 месяцев">
+              <button type="button" data-reserve-months="3">3</button>
+              <button type="button" data-reserve-months="6">6</button>
+              <button type="button" data-reserve-months="12">12</button>
+            </div>
+          </div>
+          <p class="hint" id="budget-reserve-hint">Эти деньги остаются на случай ЧП и покрывают только платежи по ипотеке.</p>
+        </fieldset>
+        <details class="budget-terms" open>
+          <summary>Условия кредита</summary>
+          <div class="detail-content">
+            <div class="field-grid">
+              <label class="mini-field" for="budget-rate">Ставка, % годовых<input id="budget-rate" type="text" inputmode="decimal"></label>
+              <label class="mini-field" for="budget-years">Срок, лет<input id="budget-years" type="text" inputmode="numeric"></label>
+              <label class="mini-field" for="budget-down-percent">Первый взнос от, %<input id="budget-down-percent" type="text" inputmode="decimal"></label>
+              <label class="mini-field" for="budget-debt-share">Лимит платежей, % дохода<input id="budget-debt-share" type="text" inputmode="decimal" aria-describedby="budget-share-hint"></label>
+              <label class="mini-field" for="budget-purchase-costs">Расходы на сделку отдельно, ₽<input id="budget-purchase-costs" type="text" inputmode="numeric"></label>
+              <label class="mini-field" for="budget-remainder">Хочу оставлять, ₽/мес.<input id="budget-remainder" type="text" inputmode="numeric"></label>
+            </div>
+            <p class="hint" id="budget-share-hint">Лимит включает ипотеку и другие кредиты. Расходы на сделку и страховку можно указать отдельной суммой.</p>
+          </div>
+        </details>
+      </section>
+      <div class="results-column budget-results">
+        <section class="result-card budget-result" aria-labelledby="budget-result-title">
+          <div class="result-inner">
+            <div class="payment-head"><div class="result-kicker" id="budget-result-title">Расчётная сумма ипотеки</div></div>
+            <div class="payment-value"><strong id="budget-loan">—</strong></div>
+            <p class="payment-note" id="budget-result-note"></p>
+            <div class="result-stats">
+              <div><span>Цена квартиры</span><strong id="budget-price">—</strong></div>
+              <div><span>Платёж в месяц</span><strong id="budget-payment">—</strong></div>
+              <div><span>Подушка</span><strong id="budget-reserve-summary">—</strong></div>
+            </div>
+          </div>
+        </section>
+        <p class="status-banner" id="budget-status" role="status" hidden></p>
+        <section class="card cash-card" id="budget-cash" aria-labelledby="budget-cash-title" hidden>
+          <div class="section-head">
+            <div><h2 id="budget-cash-title">Взнос и подушка</h2><p id="budget-cash-note"></p></div>
+            <strong class="cash-total" id="budget-required">—</strong>
+          </div>
+          <div class="cash-bar" id="budget-cash-bar" aria-hidden="true"><span></span><span></span></div>
+          <dl class="cash-items">
+            <div><dt><i></i>Первоначальный взнос</dt><dd id="budget-down">—</dd></div>
+            <div><dt><i></i><span id="budget-reserve-label">Подушка на ипотеку</span></dt><dd id="budget-reserve">—</dd></div>
+          </dl>
+          <p class="hint budget-cash-hint" id="budget-costs-note" hidden></p>
+          <p class="hint budget-cash-hint" id="budget-monthly-left" hidden></p>
+          <div class="budget-detail-link" id="budget-detail-link" hidden>
+            <button class="outline-button" id="budget-open-schedule" type="button">Открыть график платежей <span aria-hidden="true">↗</span></button>
+          </div>
+        </section>
+        <p class="source-note"><span aria-hidden="true">ⓘ</span> Стартовые 18% — средняя ставка по рыночным выдачам за сентябрь 2026 года. <a href="https://www.cbr.ru/statistics/bank_sector/mortgage/indicator_mortgage/0926/" target="_blank" rel="noopener">Банк России</a></p>
+      </div>
+    </div>
+    <section class="card below-card salary-card" id="budget-salary" aria-labelledby="budget-salary-title" hidden>
+      <div class="section-head">
+        <div>
+          <h2 id="budget-salary-title" tabindex="-1">Как распределяется зарплата</h2>
+          <p>С января по декабрь по прогрессивной шкале НДФЛ за 2026 год.</p>
+        </div>
+        <div class="salary-average"><strong id="budget-salary-average"></strong><span>В среднем на руки в месяц</span></div>
+      </div>
+      <p class="status-banner salary-status" id="budget-salary-status" role="status" hidden></p>
+      <p class="hint salary-scroll-hint">Прокрутите таблицу вправо, чтобы увидеть расходы и остаток.</p>
+      <div class="table-wrap" tabindex="0" role="region" aria-label="Таблица зарплаты, налогов и расходов за год">
+        <table>
+          <thead><tr><th scope="col">Месяц</th><th scope="col">До НДФЛ, ₽</th><th scope="col">НДФЛ, ₽</th><th scope="col">На руки, ₽</th><th scope="col">Расходы на жизнь, ₽</th><th scope="col">Другие кредиты, ₽</th><th scope="col">Ипотека, ₽</th><th scope="col">Остаётся, ₽</th></tr></thead>
+          <tbody id="budget-salary-rows"></tbody>
+          <tfoot id="budget-salary-total"></tfoot>
+        </table>
+      </div>
+      <p class="hint salary-note">Для обычной зарплаты налогового резидента РФ с одинаковым начислением каждый месяц и без вычетов. <a href="https://www.nalog.gov.ru/rn64/news/activities_fts/16639359/" target="_blank" rel="noopener">Шкала НДФЛ ФНС</a></p>
+    </section>
+    <section class="card below-card methodology" aria-labelledby="budget-method-title">
+      <h2 id="budget-method-title">Как считается доступная ипотека</h2>
+      <details>
+        <summary>Доход и ежемесячный платёж</summary>
+        <p>Калькулятор сравнивает остаток зарплаты после обязательных расходов с лимитом на платежи по всем кредитам. Он вычитает платежи по действующим кредитам и берёт меньшую сумму. Оценка использует аннуитет и постоянную ставку. При рассмотрении заявки банк сам определяет доход, долговую нагрузку и условия выдачи.</p>
+        <p><a href="https://www.cbr.ru/finstab/instruments/pti/" target="_blank" rel="noopener">Как банки рассчитывают показатель долговой нагрузки</a></p>
+      </details>
+      <details>
+        <summary>Накопления, подушка и взнос</summary>
+        <p>Если накопления известны, калькулятор ищет наибольший кредит, для которого хватает на минимальный взнос и подушку. Подушка — ежемесячный платёж по ипотеке, умноженный на число месяцев. Первый взнос — накопления за вычетом подушки, а цена квартиры — взнос плюс сумма кредита. Расходы на сделку планируются отдельно.</p>
+      </details>
+    </section>
+    <div class="sr-only" id="budget-live" role="status"></div>
+  </main>
+  <footer class="shell footer"><span class="footer-brand">Ключи</span><span>Ипотечный калькулятор · Россия, 2026</span><a id="back-to-top" href="#calculator">Наверх ↑</a></footer>
 </body>
 </html>

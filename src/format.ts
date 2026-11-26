@@ -13,6 +13,27 @@ export function numberFromInput(value: string, fractional: boolean): number {
   return pattern.test(text) ? Number(text) : NaN;
 }
 
+export function groupMoneyWhileEditing(value: string, start: number, end = start) {
+  const compact = value.replace(/\s/gu, '');
+  if (!/^-?\d+$/u.test(compact)) return { value, start, end };
+
+  const grouped = compact.replace(/^(-?)0+(?=\d)/u, '$1').replace(/\B(?=(?:\d{3})+(?!\d))/gu, '\u00a0');
+  if (grouped === value) return { value, start, end };
+
+  function position(offset: number) {
+    let digitsToRight = value.slice(offset).replace(/\D/gu, '').length;
+    const minimum = grouped.startsWith('-') && offset > value.indexOf('-') ? 1 : 0;
+    let cursor = grouped.length;
+    while (cursor > minimum && digitsToRight > 0) {
+      cursor -= 1;
+      if (/\d/u.test(grouped[cursor])) digitsToRight -= 1;
+    }
+    return cursor;
+  }
+
+  return { value: grouped, start: position(start), end: position(end) };
+}
+
 export function plural(value: number, forms: readonly [string, string, string]): string {
   const lastTwo = value % 100;
   const last = value % 10;
