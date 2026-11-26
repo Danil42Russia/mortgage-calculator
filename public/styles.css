@@ -260,6 +260,7 @@ tbody tr:hover { background: #faf8fe; }
 .salary-card tbody th { border-top: 1px solid #f1edf7; background: #fff; color: var(--ink); }
 .salary-card tfoot { border-top: 1px solid var(--line); background: #f5f2fb; font-weight: 700; }
 .salary-card td.salary-deficit { color: #9b3d2c; }
+.salary-tax-rates { display: block; color: var(--muted); font-size: 12px; }
 .salary-status { margin-top: 13px; }
 .salary-scroll-hint { display: none; margin-top: 10px; }
 .salary-note { margin-top: 11px; }

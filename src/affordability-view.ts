@@ -6,7 +6,7 @@ import { decimal, integer, money, monthWord, numberFromInput, yearWord } from '.
 import { bindMoneyGrouping } from './money-input.ts';
 import { calculateMortgage } from './mortgage.ts';
 import { estimateSalary2026 } from './salary.ts';
-import type { SalaryEstimate } from './salary.ts';
+import type { SalaryEstimate, SalaryMonth } from './salary.ts';
 import { MARKET_RATE } from './scenario.ts';
 
 type BudgetState = Omit<AffordabilityInput, 'months' | 'monthlyIncome' | 'livingCosts' | 'monthlyDebts' | 'monthlyRemainder'> & {
@@ -64,6 +64,8 @@ const monthNames = [
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
 ];
+const rateList = new Intl.ListFormat('ru-RU');
+type SalaryRow = Pick<SalaryMonth, 'gross' | 'tax' | 'net'> & { rates?: readonly number[] };
 
 function showSalaryFlow(estimate: SalaryEstimate | null, monthlyIncome: number, payment: number) {
   budgetElement('salary').hidden = !estimate;
@@ -76,14 +78,24 @@ function showSalaryFlow(estimate: SalaryEstimate | null, monthlyIncome: number, 
   total.replaceChildren();
   budgetText('salary-average', money(monthlyIncome));
 
-  function appendRow(section: HTMLTableSectionElement, name: string, gross: number, tax: number, net: number, months: number) {
+  function appendRow(section: HTMLTableSectionElement, name: string, { gross, tax, net, rates }: SalaryRow, months: number) {
     const row = section.insertRow();
     const month = document.createElement('th');
     month.scope = 'row';
     month.textContent = name;
     row.append(month);
+    row.insertCell().textContent = decimal(gross);
+    row.insertCell().textContent = decimal(tax);
+    const share = row.insertCell();
+    share.textContent = decimal(100 * tax / gross) + '\u00a0%';
+    if (rates && rates.length > 1) {
+      const detail = document.createElement('small');
+      detail.className = 'salary-tax-rates';
+      detail.textContent = 'Ставки ' + rateList.format(rates.map(rate => rate + '\u00a0%'));
+      share.append(detail);
+    }
     const remaining = net - payment * months;
-    for (const value of [gross, tax, net, payment * months, remaining]) {
+    for (const value of [net, payment * months, remaining]) {
       row.insertCell().textContent = decimal(value);
     }
     row.lastElementChild?.classList.toggle('salary-deficit', remaining < 0);
@@ -91,10 +103,10 @@ function showSalaryFlow(estimate: SalaryEstimate | null, monthlyIncome: number, 
   }
 
   let deficitMonths = 0;
-  for (const { month, gross, tax, net } of estimate.months) {
-    if (appendRow(body, monthNames[month - 1], gross, tax, net, 1) < 0) deficitMonths += 1;
+  for (const month of estimate.months) {
+    if (appendRow(body, monthNames[month.month - 1], month, 1) < 0) deficitMonths += 1;
   }
-  appendRow(total, 'За год', estimate.annualGross, estimate.annualTax, estimate.annualNet, estimate.months.length);
+  appendRow(total, 'За год', { gross: estimate.annualGross, tax: estimate.annualTax, net: estimate.annualNet }, estimate.months.length);
   budgetText('salary-status', deficitMonths ? 'Месяцев, в которых платёж по ипотеке превышает зарплату на руки, — ' + deficitMonths + '.' : '');
   budgetElement('salary-status').hidden = deficitMonths === 0;
 }

@@ -27,6 +27,17 @@ test('only the excess is subject to the higher rate in a mixed-rate month', () =
   assert.equal(result.annualTax, 546_000);
 });
 
+test('monthly rates include only brackets applied to that month’s income', () => {
+  const { months } = estimateSalary2026(350_000);
+  assert.deepEqual(months[5].rates, [13]);
+  assert.deepEqual(months[6].rates, [13, 15]);
+  assert.equal(months[6].tax, 46_500);
+  assert.deepEqual(months[7].rates, [15]);
+  assert.deepEqual(estimateSalary2026(200_000).months[11].rates, [13]);
+  assert.deepEqual(estimateSalary2026(300_000).months[8].rates, [15]);
+  assert.deepEqual(estimateSalary2026(60_000_000).months[0].rates, [13, 15, 18, 20, 22]);
+});
+
 test('reconciles withholding across all five brackets', () => {
   const result = estimateSalary2026(5_000_000);
   assert.equal(result.months[0].tax, 702_000);

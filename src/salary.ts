@@ -6,21 +6,27 @@ const salaryBrackets2026 = [
   { ceiling: Infinity, rate: 22 },
 ] as const;
 
-function yearToDateTax(gross: number) {
+function taxForMonth(previousGross: number, cumulativeGross: number) {
   let floor = 0;
   let taxKopecks = 0;
+  const rates: number[] = [];
   for (const { ceiling, rate } of salaryBrackets2026) {
-    taxKopecks += (Math.min(gross, ceiling) - floor) * rate;
-    if (gross <= ceiling) break;
+    const taxable = Math.min(cumulativeGross, ceiling) - Math.max(previousGross, floor);
+    if (taxable > 0) {
+      taxKopecks += taxable * rate;
+      rates.push(rate);
+    }
+    if (cumulativeGross <= ceiling) break;
     floor = ceiling;
   }
-  return Math.round(taxKopecks / 100);
+  return { taxKopecks, rates };
 }
 
 export interface SalaryMonth {
   month: number;
   gross: number;
   tax: number;
+  rates: number[];
   net: number;
 }
 
@@ -38,13 +44,16 @@ export function estimateSalary2026(monthlyGross: number): SalaryEstimate {
     throw new RangeError('Monthly gross salary must be a whole amount between 0 and 1,000,000,000 rubles');
   }
 
+  let cumulativeTaxKopecks = 0;
   let withheld = 0;
   const months: SalaryMonth[] = [];
   for (let month = 1; month <= 12; month += 1) {
-    const cumulativeTax = yearToDateTax(month * monthlyGross);
+    const { taxKopecks, rates } = taxForMonth((month - 1) * monthlyGross, month * monthlyGross);
+    cumulativeTaxKopecks += taxKopecks;
+    const cumulativeTax = Math.round(cumulativeTaxKopecks / 100);
     const tax = cumulativeTax - withheld;
     withheld = cumulativeTax;
-    months.push({ month, gross: monthlyGross, tax, net: monthlyGross - tax });
+    months.push({ month, gross: monthlyGross, tax, rates, net: monthlyGross - tax });
   }
   const annualGross = monthlyGross * 12;
   const annualNet = annualGross - withheld;
