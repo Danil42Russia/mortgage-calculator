@@ -1,7 +1,9 @@
 import { calculateAffordability } from './affordability.ts';
 import type { AffordabilityInput } from './affordability.ts';
+import { BalanceChart } from './chart.ts';
 import { decimal, integer, money, monthWord, numberFromInput, yearWord } from './format.ts';
 import { bindMoneyGrouping } from './money-input.ts';
+import { calculateMortgage } from './mortgage.ts';
 import { estimateSalary2026 } from './salary.ts';
 import type { SalaryEstimate } from './salary.ts';
 import { MARKET_RATE } from './scenario.ts';
@@ -105,6 +107,9 @@ export function setupAffordability(
   const incomeModes = document.querySelectorAll<HTMLInputElement>('input[name="budget-income-mode"]');
   const cashBar = budgetElement('cash-bar');
   const status = budgetElement('status');
+  const chart = new BalanceChart(
+    budgetElement<HTMLCanvasElement>('chart'), budgetElement('chart-tooltip'), budgetElement('chart-live'),
+  );
 
   function updateField(key: FieldKey) {
     const field = fields[key];
@@ -116,11 +121,12 @@ export function setupAffordability(
 
   function render() {
     const { salary, years, purchaseCosts, ...budget } = state;
+    const months = years * 12;
     const gross = salaryMode === 'gross';
     const estimate = gross && salary ? estimateSalary2026(salary) : null;
     const monthlyIncome = estimate ? Math.floor(estimate.averageNet) : (salary ?? 0);
     const result = calculateAffordability({
-      ...budget, monthlyIncome, months: years * 12, livingCosts: 0, monthlyDebts: 0, monthlyRemainder: 0,
+      ...budget, monthlyIncome, months, livingCosts: 0, monthlyDebts: 0, monthlyRemainder: 0,
     });
     const { quote, incomeQuote } = result;
     const cash = quote ?? incomeQuote;
@@ -161,6 +167,17 @@ export function setupAffordability(
     }
     budgetText('status', notice);
     status.hidden = !notice;
+
+    const schedule = quote ? calculateMortgage({
+      principal: quote.principal,
+      annualRate: budget.annualRate,
+      months,
+      paymentType: 'annuity',
+    }) : null;
+    chart.set(schedule ? { result: schedule, baseline: null } : null);
+    budgetElement('chart-empty').hidden = schedule !== null;
+    budgetText('chart-empty', monthlyIncome ? 'График появится, когда будет рассчитана сумма кредита.'
+      : 'Укажите зарплату, чтобы построить график.');
 
     budgetElement('cash').hidden = !cash;
     if (cash) {

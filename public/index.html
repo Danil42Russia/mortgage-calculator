@@ -292,6 +292,20 @@
           </div>
         </section>
         <p class="status-banner" id="budget-status" role="status" hidden></p>
+        <section class="card chart-card" aria-labelledby="budget-chart-title">
+          <div class="chart-head">
+            <div>
+              <h2 id="budget-chart-title">Как уменьшается долг</h2>
+              <p>Остаток кредита по годам</p>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="budget-chart" tabindex="-1" aria-label="Остаток долга. Используйте стрелки влево и вправо для просмотра значений."></canvas>
+            <div class="chart-empty" id="budget-chart-empty">Укажите зарплату, чтобы построить график.</div>
+            <div class="chart-tooltip" id="budget-chart-tooltip" hidden></div>
+            <div class="sr-only" id="budget-chart-live" role="status"></div>
+          </div>
+        </section>
         <section class="card cash-card" id="budget-cash" aria-labelledby="budget-cash-title" hidden>
           <div class="section-head">
             <div><h2 id="budget-cash-title">Взнос и подушка</h2><p id="budget-cash-note"></p></div>
@@ -305,7 +319,7 @@
           <p class="hint budget-cash-hint" id="budget-costs-note" hidden></p>
           <p class="hint budget-cash-hint" id="budget-monthly-left" hidden></p>
           <div class="budget-detail-link" id="budget-detail-link" hidden>
-            <button class="outline-button" id="budget-open-schedule" type="button">Открыть график платежей <span aria-hidden="true">↗</span></button>
+            <button class="outline-button" id="budget-open-schedule" type="button">Открыть таблицу платежей <span aria-hidden="true">↗</span></button>
           </div>
         </section>
         <p class="source-note"><span aria-hidden="true">ⓘ</span> Стартовые 18% — средняя ставка по рыночным выдачам за сентябрь 2026 года. <a href="https://www.cbr.ru/statistics/bank_sector/mortgage/indicator_mortgage/0926/" target="_blank" rel="noopener">Банк России</a></p>
