@@ -1,3 +1,5 @@
+import type { PaymentRow } from './mortgage.ts';
+
 const salaryBrackets2026 = [
   { ceiling: 2_400_000, rate: 13 },
   { ceiling: 5_000_000, rate: 15 },
@@ -58,4 +60,27 @@ export function estimateSalary2026(monthlyGross: number): SalaryEstimate {
   const annualGross = monthlyGross * 12;
   const annualNet = annualGross - withheld;
   return { months, annualGross, annualTax: withheld, annualNet, averageNet: annualNet / 12 };
+}
+
+export interface SalaryBalance {
+  payment: number;
+  remaining: number;
+  accumulated: number;
+}
+
+/** Repeat the same net salary or the 2026 tax year, starting with zero savings. */
+export function projectSalary(
+  income: number | SalaryEstimate, months: number, schedule: readonly PaymentRow[],
+): SalaryBalance[] {
+  const balances: SalaryBalance[] = [];
+  let accumulatedCents = 0;
+  for (let index = 0; index < months; index += 1) {
+    const net = typeof income === 'number' ? income : income.months[index % 12].net;
+    const row = schedule[index];
+    const paymentCents = row ? Math.round(row.scheduledPayment * 100) + Math.round(row.prepayment * 100) : 0;
+    const remainingCents = Math.round(net * 100) - paymentCents;
+    accumulatedCents += remainingCents;
+    balances.push({ payment: paymentCents / 100, remaining: remainingCents / 100, accumulated: accumulatedCents / 100 });
+  }
+  return balances;
 }

@@ -256,6 +256,11 @@ tbody tr:hover { background: #faf8fe; }
 .salary-average { display: grid; gap: 5px; text-align: right; }
 .salary-average strong { color: var(--accent-dark); font-size: 21px; line-height: 1; white-space: nowrap; }
 .salary-average span { color: var(--quiet); font-size: 12px; }
+.salary-period { max-width: 280px; padding: 0; margin: 18px 0 14px; border: 0; min-width: 0; }
+.salary-chart-head { align-items: baseline; }
+.salary-chart-head h3 { margin: 0; font-size: 16px; }
+.salary-chart-head p { margin: 0; color: var(--accent-dark); font-weight: 650; font-variant-numeric: tabular-nums; }
+#budget-salary-breakdown { margin-top: 18px; border-top: 1px solid var(--line); }
 .salary-card th:first-child { position: sticky; left: 0; }
 .salary-card tbody th { border-top: 1px solid #f1edf7; background: #fff; color: var(--ink); }
 .salary-card tfoot { border-top: 1px solid var(--line); background: #f5f2fb; font-weight: 700; }

@@ -251,7 +251,7 @@
           <div class="budget-income-feedback">
             <p class="hint" id="budget-income-hint">Возьмите начисленную сумму за месяц из расчётного листка.</p>
             <p class="hint" id="budget-monthly-left" hidden>После ипотеки остаётся <strong id="budget-monthly-left-amount"></strong> в месяц.</p>
-            <button class="outline-button" id="budget-open-salary" type="button" hidden>Посмотреть по месяцам <span aria-hidden="true">↓</span></button>
+            <button class="outline-button" id="budget-open-salary" type="button" hidden>График зарплаты <span aria-hidden="true">↓</span></button>
           </div>
           <label class="budget-field" for="budget-debt-share">Доля зарплаты на ипотеку
             <span class="input-frame"><input id="budget-debt-share" type="text" inputmode="decimal" aria-describedby="budget-share-hint"><span>%</span></span>
@@ -339,20 +339,41 @@
       <div class="section-head">
         <div>
           <h2 id="budget-salary-title" tabindex="-1">Как распределяется зарплата</h2>
-          <p>Доля НДФЛ показывает, какой процент начисленной зарплаты уходит на налог по шкале 2026 года.</p>
+          <p>Расчёт с января 2026 года при постоянной зарплате, без расходов на жизнь, инфляции и процентов на накопления.</p>
         </div>
         <div class="salary-average"><strong id="budget-salary-average"></strong><span>В среднем на руки в месяц</span></div>
       </div>
-      <p class="status-banner salary-status" id="budget-salary-status" role="status" hidden></p>
-      <p class="hint salary-scroll-hint">Прокрутите таблицу вправо, чтобы увидеть платёж и остаток.</p>
-      <div class="table-wrap" tabindex="0" role="region" aria-label="Таблица зарплаты, налога и платежей по ипотеке за год">
-        <table>
-          <thead><tr><th scope="col">Месяц</th><th scope="col">До НДФЛ, ₽</th><th scope="col">НДФЛ, ₽</th><th scope="col">Доля НДФЛ</th><th scope="col">На руки, ₽</th><th scope="col">Ипотека, ₽</th><th scope="col">После ипотеки, ₽</th></tr></thead>
-          <tbody id="budget-salary-rows"></tbody>
-          <tfoot id="budget-salary-total"></tfoot>
-        </table>
+      <fieldset class="salary-period">
+        <legend class="sr-only">Период графика зарплаты</legend>
+        <div class="segmented">
+          <label><input type="radio" name="salary-period" value="year" checked><span>За 2026 год</span></label>
+          <label><input type="radio" name="salary-period" value="term"><span>За срок ипотеки</span></label>
+        </div>
+      </fieldset>
+      <div class="section-head salary-chart-head">
+        <h3 id="budget-salary-chart-title"></h3>
+        <p id="budget-salary-sum"></p>
       </div>
-      <p class="hint salary-note">Для обычной зарплаты налогового резидента РФ с одинаковым начислением каждый месяц и без вычетов. <a href="https://www.nalog.gov.ru/rn64/news/activities_fts/16639359/" target="_blank" rel="noopener">Шкала НДФЛ ФНС</a></p>
+      <p class="hint" id="budget-no-salary-payment" hidden>При этих параметрах ипотека недоступна. В прогнозе платёж равен нулю.</p>
+      <div class="chart-wrap">
+        <canvas id="budget-salary-chart" tabindex="-1" aria-labelledby="budget-salary-chart-title" aria-describedby="budget-salary-chart-help"></canvas>
+        <div class="chart-tooltip" id="budget-salary-tooltip" hidden></div>
+        <div class="sr-only" id="budget-salary-live" role="status"></div>
+      </div>
+      <p class="hint" id="budget-salary-chart-help">Выберите точку на графике или используйте стрелки, чтобы увидеть точную сумму.</p>
+      <div id="budget-salary-breakdown">
+        <p class="hint salary-note">Доля НДФЛ показывает, какой процент начисленной зарплаты ушёл на налог за месяц или за год.</p>
+        <p class="status-banner salary-status" id="budget-salary-status" role="status" hidden></p>
+        <p class="hint salary-scroll-hint">Прокрутите таблицу вправо, чтобы увидеть платёж и остаток.</p>
+        <div class="table-wrap" tabindex="0" role="region" aria-label="Таблица зарплаты, налога и платежей по ипотеке за год">
+          <table>
+            <thead><tr><th scope="col">Месяц</th><th scope="col">До НДФЛ, ₽</th><th scope="col">НДФЛ, ₽</th><th scope="col">Доля НДФЛ</th><th scope="col">На руки, ₽</th><th scope="col">Ипотека, ₽</th><th scope="col">После ипотеки, ₽</th></tr></thead>
+            <tbody id="budget-salary-rows"></tbody>
+            <tfoot id="budget-salary-total"></tfoot>
+          </table>
+        </div>
+        <p class="hint salary-note">Каждый год прогноза использует шкалу НДФЛ 2026 года для обычной зарплаты налогового резидента РФ без вычетов. <a href="https://www.nalog.gov.ru/rn64/news/activities_fts/16639359/" target="_blank" rel="noopener">Шкала НДФЛ ФНС</a></p>
+      </div>
     </section>
     <section class="card below-card methodology" aria-labelledby="budget-method-title">
       <h2 id="budget-method-title">Как считается доступная ипотека</h2>

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { estimateSalary2026 } from '../src/salary.ts';
+import { calculateMortgage } from '../src/mortgage.ts';
+import { estimateSalary2026, projectSalary } from '../src/salary.ts';
 
 test('a salary at the first annual threshold is taxed at thirteen percent throughout the year', () => {
   const result = estimateSalary2026(200_000);
@@ -62,4 +63,31 @@ test('handles zero salary and rejects invalid monthly amounts', () => {
   for (const amount of [-1, 100.5, NaN, Infinity]) {
     assert.throws(() => estimateSalary2026(amount), RangeError);
   }
+});
+
+test('the projection repeats the tax year and keeps months with a shortfall', () => {
+  const income = estimateSalary2026(350_000);
+  const loan = calculateMortgage({ principal: 300_000 * 24, annualRate: 0, months: 24, paymentType: 'annuity' });
+  const projection = projectSalary(income, 24, loan.rows);
+  assert.equal(projection[0].remaining, 4_500);
+  assert.equal(projection[6].remaining, 3_500);
+  assert.equal(projection[7].remaining, -2_500);
+  assert.equal(projection[7].accumulated, projection[6].accumulated - 2_500);
+  assert.equal(projection[12].remaining, projection[0].remaining);
+  assert.equal(projection[23].accumulated, income.annualNet * 2 - loan.totalPaid);
+});
+
+test('net salary skips withholding and the projection deducts the actual final instalment', () => {
+  const loan = calculateMortgage({ principal: 1_000, annualRate: 0, months: 12, paymentType: 'annuity' });
+  const projection = projectSalary(100, 12, loan.rows);
+  assert.deepEqual(projection[0], { payment: 83.33, remaining: 16.67, accumulated: 16.67 });
+  assert.deepEqual(projection[11], { payment: 83.37, remaining: 16.63, accumulated: 200 });
+  assert.equal(projectSalary(100, 24, loan.rows)[23].accumulated, 1_400);
+});
+
+test('a projection without mortgage payments starts with salary alone', () => {
+  const income = estimateSalary2026(350_000);
+  const projection = projectSalary(income, 480, []);
+  assert.deepEqual(projection[0], { payment: 0, remaining: 304_500, accumulated: 304_500 });
+  assert.equal(projection[479].accumulated, income.annualNet * 40);
 });

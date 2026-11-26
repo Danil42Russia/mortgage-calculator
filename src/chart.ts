@@ -20,12 +20,23 @@ function tickInterval(value: number) {
   return ([1, 2, 2.5, 5, 10].find(step => step * magnitude >= value) ?? 10) * magnitude;
 }
 
-function balanceAt(result: MortgageResult, month: number) {
-  return month === 0 ? result.principal : (result.rows[month - 1]?.balance ?? 0);
+export function durationAxis(month: number, last: boolean) {
+  if (!last) return String(month / 12);
+  return month % 12 ? formatTerm(month) : month / 12 + ' ' + yearWord(month / 12);
 }
 
-export class BalanceChart {
-  private data: ChartData | null = null;
+interface ChartSeries {
+  values: number[];
+  comparison?: { values: number[]; label: string };
+  axisLabel: (index: number, last: boolean) => string;
+  pointLabel: (index: number) => string;
+  axisStep: number;
+  formatValue?: (value: number) => string;
+  fitValues?: boolean;
+}
+
+export class SeriesChart {
+  private data: ChartSeries | null = null;
   private activeMonth: number | null = null;
   private maxMonth = 0;
   private plot: Plot | null = null;
@@ -52,7 +63,7 @@ export class BalanceChart {
     canvas.addEventListener('keydown', event => {
       if (!this.data) return;
       const current = this.activeMonth ?? 0;
-      const intervals: Record<string, number> = { ArrowLeft: -12, ArrowRight: 12, ArrowDown: -1, ArrowUp: 1 };
+      const intervals: Record<string, number> = { ArrowLeft: -this.data.axisStep, ArrowRight: this.data.axisStep, ArrowDown: -1, ArrowUp: 1 };
       if (event.key === 'Escape') {
         this.clearSelection();
         return;
@@ -68,9 +79,9 @@ export class BalanceChart {
     });
   }
 
-  set(data: ChartData | null) {
+  setSeries(data: ChartSeries | null) {
     this.data = data;
-    this.maxMonth = Math.max(data?.result.rows.length ?? 0, data?.baseline?.rows.length ?? 0);
+    this.maxMonth = Math.max(0, (data?.values.length ?? 0) - 1, (data?.comparison?.values.length ?? 0) - 1);
     this.canvas.tabIndex = this.maxMonth ? 0 : -1;
     if (this.activeMonth !== null) this.activeMonth = Math.min(this.activeMonth, this.maxMonth);
     this.draw();
@@ -100,16 +111,22 @@ export class BalanceChart {
     this.plot = null;
     if (!data || !maxMonth || width < 110) return;
 
-    const { result, baseline } = data;
-    const step = tickInterval(result.principal / 4);
-    const ticks = Math.ceil(result.principal / step);
-    const maximum = ticks * step;
+    const allValues = data.values.concat(data.comparison?.values ?? []);
+    const high = Math.max(0, ...allValues);
+    const lowestValue = Math.min(...allValues);
+    const low = data.fitValues && lowestValue > 0 && lowestValue < high
+      ? Math.min(lowestValue, high * 0.95) : Math.min(0, lowestValue);
+    const step = tickInterval((high - low || 1) / 4);
+    const firstTick = Math.floor(low / step);
+    const lastTick = Math.max(firstTick + 1, Math.ceil(high / step));
+    const minimum = firstTick * step;
+    const maximum = lastTick * step;
     const left = width < 410 ? 60 : 70;
     const right = width - 17;
     const top = 15;
     const bottom = height - 27;
     const x = (month: number) => left + month * (right - left) / maxMonth;
-    const y = (balance: number) => bottom - balance * (bottom - top) / maximum;
+    const y = (value: number) => bottom - (value - minimum) * (bottom - top) / (maximum - minimum);
     this.plot = { left, right, top, bottom, x, y };
 
     context.font = '11px system-ui, sans-serif';
@@ -117,7 +134,7 @@ export class BalanceChart {
     context.fillStyle = '#726d85';
     context.strokeStyle = '#ebe6f3';
     context.lineWidth = 1;
-    for (let index = 0; index <= ticks; index += 1) {
+    for (let index = firstTick; index <= lastTick; index += 1) {
       const value = index * step;
       const level = y(value);
       context.beginPath();
@@ -128,28 +145,27 @@ export class BalanceChart {
       context.fillText(compactNumber(value) + ' ₽', left - 9, level);
     }
 
-    const wholeYears = Math.floor(maxMonth / 12);
-    const yearStep = Math.max(1, Math.ceil(wholeYears / (width < 410 ? 3 : 4)));
-    for (let year = 0; year * 12 <= maxMonth; year += yearStep) {
-      const position = x(year * 12);
-      if (year !== 0 && position > right - 46) break;
+    const stride = data.axisStep * Math.max(1, Math.ceil(maxMonth / data.axisStep / (width < 410 ? 3 : 4)));
+    for (let index = 0; index < maxMonth; index += stride) {
+      const position = x(index);
+      if (index !== 0 && position > right - 46) break;
       context.textAlign = 'center';
-      context.fillText(String(year), position, height - 11);
+      context.fillText(data.axisLabel(index, false), position, height - 11);
     }
     context.textAlign = 'right';
-    const endLabel = maxMonth % 12 === 0 ? wholeYears + ' ' + yearWord(wholeYears) : formatTerm(maxMonth);
-    context.fillText(endLabel, right, height - 11);
+    context.fillText(data.axisLabel(maxMonth, true), right, height - 11);
 
-    const trace = (series: MortgageResult) => {
+    const trace = (values: number[]) => {
       context.beginPath();
-      context.moveTo(left, y(series.principal));
-      for (let month = 1; month <= maxMonth; month += 1) {
-        context.lineTo(x(month), y(balanceAt(series, month)));
+      context.moveTo(left, y(values[0]));
+      for (let index = 1; index <= maxMonth; index += 1) {
+        context.lineTo(x(index), y(values[index] ?? 0));
       }
     };
-    trace(result);
-    context.lineTo(right, bottom);
-    context.lineTo(left, bottom);
+    trace(data.values);
+    const base = y(Math.max(0, minimum));
+    context.lineTo(right, base);
+    context.lineTo(left, base);
     context.closePath();
     const fill = context.createLinearGradient(0, top, 0, bottom);
     fill.addColorStop(0, '#8759df35');
@@ -157,15 +173,15 @@ export class BalanceChart {
     context.fillStyle = fill;
     context.fill();
 
-    if (baseline) {
-      trace(baseline);
+    if (data.comparison) {
+      trace(data.comparison.values);
       context.strokeStyle = '#907bb8';
       context.setLineDash([4, 4]);
       context.lineWidth = 1.5;
       context.stroke();
       context.setLineDash([]);
     }
-    trace(result);
+    trace(data.values);
     context.strokeStyle = '#7447d4';
     context.lineWidth = 2.6;
     context.lineJoin = 'round';
@@ -176,10 +192,9 @@ export class BalanceChart {
   }
 
   private drawSelection(
-    context: CanvasRenderingContext2D, width: number, month: number, plot: Plot, data: ChartData,
+    context: CanvasRenderingContext2D, width: number, month: number, plot: Plot, data: ChartSeries,
   ) {
-    const { result, baseline } = data;
-    const value = balanceAt(result, month);
+    const value = data.values[month] ?? 0;
     const position = plot.x(month);
 
     context.beginPath();
@@ -194,10 +209,11 @@ export class BalanceChart {
     context.fill();
 
     const heading = document.createElement('strong');
-    heading.textContent = month ? 'Через ' + formatTerm(month) : 'При выдаче';
-    const values = baseline
-      ? [money(value), document.createElement('br'), 'Без досрочных ' + money(balanceAt(baseline, month))]
-      : [money(value)];
+    heading.textContent = data.pointLabel(month);
+    const format = data.formatValue ?? money;
+    const values = data.comparison
+      ? [format(value), document.createElement('br'), data.comparison.label + ' ' + format(data.comparison.values[month] ?? 0)]
+      : [format(value)];
     this.tooltip.replaceChildren(heading, ...values);
     this.tooltip.hidden = false;
     const preferred = position + 9 + this.tooltip.offsetWidth > width
@@ -205,5 +221,21 @@ export class BalanceChart {
       : position + 9;
     this.tooltip.style.left = Math.max(0, preferred) + 'px';
     this.tooltip.style.top = '4px';
+  }
+}
+
+function balances(result: MortgageResult) {
+  return [result.principal, ...result.rows.map(row => row.balance)];
+}
+
+export class BalanceChart extends SeriesChart {
+  set(data: ChartData | null) {
+    this.setSeries(data ? {
+      values: balances(data.result),
+      comparison: data.baseline ? { values: balances(data.baseline), label: 'Без досрочных' } : undefined,
+      axisStep: 12,
+      axisLabel: durationAxis,
+      pointLabel: month => month ? 'Через ' + formatTerm(month) : 'При выдаче',
+    } : null);
   }
 }
