@@ -30,6 +30,7 @@ const limits = {
   extraStart: [1, 480],
   lump: [0, 40_000_000],
   lumpMonth: [1, 480],
+  payoffReserve: [0, 1_000_000_000],
   changeMonth: [2, 480],
   changeRate: [0, 40],
   familyRate: [0, 16],
@@ -41,7 +42,7 @@ const limits = {
 type NumericKey = keyof typeof limits;
 const numericKeys = Object.keys(limits) as NumericKey[];
 const fractional = new Set<NumericKey>(['rate', 'changeRate', 'familyRate', 'insurance']);
-const moneyFields = new Set<NumericKey>(['price', 'down', 'extra', 'lump', 'fees', 'income', 'debts']);
+const moneyFields = new Set<NumericKey>(['price', 'down', 'extra', 'lump', 'payoffReserve', 'fees', 'income', 'debts']);
 const sliderKeys = ['price', 'down', 'rate', 'years'] as const;
 const storageKey = 'kluchi-scenarios-v1';
 const maxScenarios = 3;
@@ -52,7 +53,8 @@ function loadSaved(): Scenario[] {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(storageKey) ?? '[]');
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is Scenario => {
+    const scenarios = parsed.map(item => item && typeof item === 'object' ? { payoffReserve: 0, ...item } : item);
+    return scenarios.filter((item): item is Scenario => {
       if (typeof item !== 'object' || item === null) return false;
       if (!['market', 'family', 'custom'].includes(item.program) || !['other', 'capital'].includes(item.region)
         || !['currency', 'percent'].includes(item.downMode) || !['term', 'payment'].includes(item.goal)
@@ -141,7 +143,7 @@ function showInputs(edited?: NumericKey) {
   unitButton.setAttribute('aria-pressed', String(asPercent));
   unitButton.setAttribute('aria-label', asPercent ? 'Вводить первоначальный взнос в рублях' : 'Вводить первоначальный взнос в процентах');
   element('years-unit').textContent = yearWord(state.years);
-  element('extra-dot').hidden = !state.extra && !state.lump;
+  element('extra-dot').hidden = !state.extra && !state.lump && !state.payoffReserve;
 
   const monthCount = state.years * 12;
   const beyond = (state.extra > 0 && state.extraStart > monthCount) || (state.lump > 0 && state.lumpMonth > monthCount);
@@ -410,7 +412,7 @@ function canShowBudgetSchedule(scenario: BudgetScenario) {
 
 const budgetView = setupAffordability(canShowBudgetSchedule, scenario => {
   state = { ...DEFAULT_SCENARIO, ...scenario, program: scenario.rate === MARKET_RATE ? 'market' : 'custom' };
-  element<HTMLDetailsElement>('extra-details').open = false;
+  element<HTMLDetailsElement>('extra-details').open = scenario.payoffReserve > 0;
   element<HTMLDetailsElement>('more-details').open = false;
   render();
   navigate('schedule');
@@ -489,7 +491,7 @@ function restoreScenario(params: URLSearchParams) {
   next.goal = readChoiceParam(params, 'goal', ['term', 'payment']) ?? next.goal;
   next.change = params.get('change') === 'true';
   state = next;
-  element<HTMLDetailsElement>('extra-details').open = state.extra > 0 || state.lump > 0;
+  element<HTMLDetailsElement>('extra-details').open = state.extra > 0 || state.lump > 0 || state.payoffReserve > 0;
   element<HTMLDetailsElement>('more-details').open = state.type !== 'annuity' || state.change
     || state.insurance > 0 || state.fees > 0 || state.income > 0 || state.debts > 0;
   render();

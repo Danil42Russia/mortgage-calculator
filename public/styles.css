@@ -240,6 +240,7 @@ tbody tr:hover { background: #faf8fe; }
 .budget-field .input-frame > span { font-weight: 400; }
 .budget-reserve { min-width: 0; margin: 19px 0 8px; padding: 11px 12px; border: 1px solid #e8dff8; border-radius: 11px; background: #f8f5fe; }
 .budget-reserve legend { padding: 0 5px; font-size: 14px; font-weight: 720; color: var(--accent-dark); }
+.reserve-payoff { margin-top: 12px; }
 .budget-reserve .hint { margin-top: 7px; }
 .budget-reserve-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 9px; }
 .budget-reserve-controls .segmented { background: #eee8f7; }

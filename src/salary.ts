@@ -77,7 +77,8 @@ export function projectSalary(
   for (let index = 0; index < months; index += 1) {
     const net = typeof income === 'number' ? income : income.months[index % 12].net;
     const row = schedule[index];
-    const paymentCents = row ? Math.round(row.scheduledPayment * 100) + Math.round(row.prepayment * 100) : 0;
+    const paymentCents = row ? Math.round(row.scheduledPayment * 100) + Math.round(row.prepayment * 100)
+      - Math.round((row.fromReserve ?? 0) * 100) : 0;
     const remainingCents = Math.round(net * 100) - paymentCents;
     accumulatedCents += remainingCents;
     balances.push({ payment: paymentCents / 100, remaining: remainingCents / 100, accumulated: accumulatedCents / 100 });

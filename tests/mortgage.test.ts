@@ -23,6 +23,42 @@ test('zero rate divides an annuity into equal payments', () => {
   assert.equal(result.totalInterest, 0);
 });
 
+test('the reserve closes the loan on the first eligible payment, including equality to the kopeck', () => {
+  const input = { ...loan, principal: 1_000.08, annualRate: 0 };
+  for (const [reserve, month, spent] of [[500.04, 6, 500.04], [500.03, 7, 416.7], [600, 5, 583.38]]) {
+    const result = calculateMortgage({ ...input, prepayment: { goal: 'term', payoffReserve: reserve } });
+    assert.equal(result.rows.length, month);
+    assert.ok(result.rows.slice(0, -1).every(row => row.balance > reserve && !row.prepayment));
+    const last = result.rows.at(-1)!;
+    assert.equal(last.balance, 0);
+    assert.equal(last.fromReserve, spent);
+    assert.equal(result.totalPrepayment, spent);
+    assert.equal(result.totalPaid, input.principal);
+  }
+});
+
+test('a zero or too small reserve is kept, while a reserve covering the loan closes it on the first payment date', () => {
+  const baseline = calculateMortgage(loan);
+  for (const payoffReserve of [0, 1]) {
+    assert.deepEqual(calculateMortgage({ ...loan, prepayment: { goal: 'term', payoffReserve } }), baseline);
+  }
+  const early = calculateMortgage({ ...loan, prepayment: { goal: 'term', payoffReserve: loan.principal } });
+  assert.equal(early.rows.length, 1);
+  assert.equal(early.rows[0].fromReserve, baseline.rows[0].balance);
+  assert.equal(early.totalInterest, baseline.rows[0].interest);
+  assert.throws(() => calculateMortgage({ ...loan, prepayment: { goal: 'term', payoffReserve: -1 } }), RangeError);
+});
+
+test('the reserve covers only what remains after other prepayments', () => {
+  const result = calculateMortgage({
+    ...loan, annualRate: 0, prepayment: { goal: 'payment', lump: { month: 1, amount: 400_000 }, payoffReserve: 700_000 },
+  });
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].fromReserve, 700_000);
+  assert.equal(result.totalPrepayment, 1_100_000);
+  assert.equal(summarizeSchedule(result.rows, 'year')[0].payment, loan.principal);
+});
+
 test('declining payments reduce interest while scheduled principal stays constant', () => {
   const result = calculateMortgage({ ...loan, paymentType: 'declining' });
   assert.equal(result.firstPayment, 112_000);

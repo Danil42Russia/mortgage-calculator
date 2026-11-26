@@ -112,7 +112,9 @@
                 <label class="mini-field">Начиная с месяца<input id="extraStart" type="text" inputmode="numeric" value="1"></label>
                 <label class="mini-field">Разовый взнос, ₽<input id="lump" type="text" inputmode="numeric" value="0"></label>
                 <label class="mini-field">В каком месяце<input id="lumpMonth" type="text" inputmode="numeric" value="12"></label>
+                <label class="mini-field field-span">Подушка для погашения остатка, ₽<input id="payoffReserve" type="text" inputmode="numeric" value="0" aria-describedby="payoff-reserve-hint"></label>
               </div>
+              <p class="hint" id="payoff-reserve-hint">Когда подушки хватит на весь остаток долга после очередного платежа, кредит закроется.</p>
               <p class="hint" id="extra-note">Досрочный взнос списывается после планового платежа.</p>
             </div>
           </details>
@@ -283,6 +285,9 @@
             </div>
           </div>
           <p class="hint" id="budget-reserve-hint">Подушка покрывает выбранное число платежей по ипотеке. Остаток накоплений идёт на первый взнос.</p>
+          <label class="check-line reserve-payoff"><input id="budget-use-reserve" type="checkbox" aria-describedby="budget-payoff-hint"> Погасить остаток ипотеки из подушки</label>
+          <p class="hint" id="budget-payoff-hint">После очередного платежа кредит закроется, как только остаток долга станет равен подушке или меньше неё.</p>
+          <p class="hint" id="budget-payoff-result" role="status" hidden></p>
         </fieldset>
         <details class="budget-terms" id="budget-terms">
           <summary><span>Условия кредита</span><span class="budget-terms-summary" id="budget-terms-summary"></span></summary>

@@ -3,7 +3,7 @@ import type { AffordabilityInput } from './affordability.ts';
 import { calculatorHash, readChoiceParam, readNumberParam } from './calculator-uri.ts';
 import { durationAxis, SeriesChart } from './chart.ts';
 import { setupMortgageChart } from './mortgage-chart.ts';
-import { decimal, integer, money, monthWord, numberFromInput, yearWord } from './format.ts';
+import { decimal, formatTerm, integer, money, monthWord, numberFromInput, yearWord } from './format.ts';
 import { bindMoneyGrouping, bindPercentFormatting } from './money-input.ts';
 import { calculateMortgage } from './mortgage.ts';
 import { estimateSalary2026, projectSalary } from './salary.ts';
@@ -14,6 +14,7 @@ type BudgetState = Omit<AffordabilityInput, 'months' | 'monthlyIncome' | 'living
   salary: number | null;
   salaryMode: 'net' | 'gross';
   salaryPeriod: 'year' | 'term';
+  useReserve: boolean;
   years: number;
   purchaseCosts: number;
 };
@@ -25,12 +26,14 @@ export type BudgetScenario = {
   income: number;
   debts: number;
   fees: number;
+  payoffReserve: number;
 };
 
 const defaults: Readonly<BudgetState> = {
   salary: null,
   salaryMode: 'gross',
   salaryPeriod: 'year',
+  useReserve: false,
   savings: null,
   purchaseCosts: 0,
   annualRate: MARKET_RATE,
@@ -50,7 +53,7 @@ const fields = {
   minimumDownPercent: { id: 'down-percent', min: 0, max: 99.99, decimal: true },
   maxDebtSharePercent: { id: 'debt-share', min: 0, max: 100, decimal: true },
   purchaseCosts: { id: 'purchase-costs', min: 0, max: moneyLimit, money: true },
-} satisfies Record<Exclude<keyof BudgetState, 'salaryMode' | 'salaryPeriod'>, { id: string; min: number; max: number; decimal?: boolean; money?: boolean }>;
+} satisfies Record<Exclude<keyof BudgetState, 'salaryMode' | 'salaryPeriod' | 'useReserve'>, { id: string; min: number; max: number; decimal?: boolean; money?: boolean }>;
 
 type FieldKey = keyof typeof fields;
 const keys = Object.keys(fields) as FieldKey[];
@@ -113,16 +116,15 @@ function showSalaryFlow(estimate: SalaryEstimate | null, balances: SalaryBalance
   budgetElement('salary-status').hidden = deficitMonths === 0;
 }
 
-function showSalaryChart(chart: SeriesChart, balances: SalaryBalance[], period: BudgetState['salaryPeriod']) {
+function showSalaryChart(chart: SeriesChart, balances: SalaryBalance[], period: BudgetState['salaryPeriod'], termMonths: number) {
   if (!balances.length) {
     chart.setSeries(null);
     return;
   }
   const byMonth = period === 'year';
-  const years = balances.length / 12;
   const amount = (value: number) => decimal(value) + '\u00a0₽';
-  const total = byMonth ? balances[11].accumulated : balances[balances.length - 1].accumulated;
-  const horizon = byMonth ? '2026 год' : years + ' ' + yearWord(years);
+  const total = balances[(byMonth ? 12 : termMonths) - 1].accumulated;
+  const horizon = byMonth ? '2026 год' : formatTerm(termMonths);
   budgetText('salary-chart-title', byMonth ? 'Остаток после ипотеки по месяцам' : 'Сколько накопится, если откладывать весь остаток');
   budgetText('salary-sum', 'Всего за ' + horizon + ' — ' + amount(total));
   chart.setSeries(byMonth ? {
@@ -133,7 +135,7 @@ function showSalaryChart(chart: SeriesChart, balances: SalaryBalance[], period: 
     pointLabel: index => monthNames[index] + ' 2026',
     formatValue: amount,
   } : {
-    values: [0, ...balances.map(month => month.accumulated)],
+    values: [0, ...balances.slice(0, termMonths).map(month => month.accumulated)],
     axisStep: 12,
     axisLabel: durationAxis,
     pointLabel: index => index ? monthNames[(index - 1) % 12] + ' ' + (2026 + Math.floor((index - 1) / 12)) : 'Начало 2026 года',
@@ -149,6 +151,7 @@ export function setupAffordability(
   let state: BudgetState = { ...defaults };
   let scenario: BudgetScenario | null = null;
   const reserveButtons = document.querySelectorAll<HTMLButtonElement>('[data-reserve-months]');
+  const useReserveInput = budgetElement<HTMLInputElement>('use-reserve');
   const incomeModes = document.querySelectorAll<HTMLInputElement>('input[name="budget-income-mode"]');
   const salaryPeriods = document.querySelectorAll<HTMLInputElement>('input[name="salary-period"]');
   const cashBar = budgetElement('cash-bar');
@@ -167,7 +170,7 @@ export function setupAffordability(
   }
 
   function render() {
-    const { salary, salaryMode, salaryPeriod, years, purchaseCosts, ...budget } = state;
+    const { salary, salaryMode, salaryPeriod, years, purchaseCosts, useReserve, ...budget } = state;
     const months = years * 12;
     const gross = salaryMode === 'gross';
     const estimate = gross && salary ? estimateSalary2026(salary) : null;
@@ -214,18 +217,29 @@ export function setupAffordability(
     budgetText('status', notice);
     status.hidden = !notice;
 
+    const payoffReserve = useReserve ? quote?.reserve ?? 0 : 0;
     const schedule = quote ? calculateMortgage({
       principal: quote.principal,
       annualRate: budget.annualRate,
       months,
       paymentType: 'annuity',
+      prepayment: payoffReserve ? { goal: 'term', payoffReserve } : undefined,
     }) : null;
+    const lastPayment = schedule?.rows.at(-1);
+    const fromReserve = lastPayment?.fromReserve ?? 0;
+    budgetElement('payoff-result').hidden = !useReserve || !quote;
+    if (useReserve && quote) {
+      const outcome = fromReserve && lastPayment
+        ? 'Кредит закроется на ' + lastPayment.month + '-м месяце. Из подушки уйдёт ' + decimal(fromReserve) + '\u00a0₽.'
+        : 'Кредит закроется по обычному графику.';
+      budgetText('payoff-result', outcome + ' В подушке останется ' + decimal(payoffReserve - fromReserve) + '\u00a0₽.');
+    }
     const balances = salary ? projectSalary(estimate ?? salary, months, schedule?.rows ?? []) : [];
     budgetElement('salary').hidden = !salary;
     budgetElement('open-salary').hidden = !salary;
     budgetElement('no-salary-payment').hidden = !!schedule;
     budgetText('salary-average', money(monthlyIncome));
-    showSalaryChart(salaryChart, balances, salaryPeriod);
+    showSalaryChart(salaryChart, balances, salaryPeriod, schedule?.rows.length ?? months);
     showSalaryFlow(estimate, balances);
     chart.set(schedule ? { result: schedule, baseline: null } : null);
     budgetElement('chart-empty').hidden = schedule !== null;
@@ -258,6 +272,7 @@ export function setupAffordability(
       income: monthlyIncome,
       debts: 0,
       fees: purchaseCosts,
+      payoffReserve,
     } : null;
     budgetElement('detail-link').hidden = !scenario || !canShowSchedule(scenario);
     onChange();
@@ -311,6 +326,11 @@ export function setupAffordability(
     if (quote) budgetText('live', 'Подушка на ипотеку ' + money(quote.reserve));
   }));
 
+  useReserveInput.addEventListener('change', () => {
+    state.useReserve = useReserveInput.checked;
+    render();
+  });
+
   incomeModes.forEach(input => input.addEventListener('change', () => {
     state.salaryMode = input.value === 'gross' ? 'gross' : 'net';
     render();
@@ -340,7 +360,9 @@ export function setupAffordability(
     }
     next.salaryMode = readChoiceParam(params, 'salaryMode', ['gross', 'net']) ?? defaults.salaryMode;
     next.salaryPeriod = readChoiceParam(params, 'salaryPeriod', ['year', 'term']) ?? defaults.salaryPeriod;
+    next.useReserve = params.get('useReserve') === 'true';
     state = next;
+    useReserveInput.checked = state.useReserve;
     incomeModes.forEach(input => { input.checked = input.value === state.salaryMode; });
     salaryPeriods.forEach(input => { input.checked = input.value === state.salaryPeriod; });
     budgetElement<HTMLDetailsElement>('terms').open = state.annualRate !== defaults.annualRate

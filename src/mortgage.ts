@@ -11,6 +11,7 @@ export interface MortgageInput {
     goal: PrepaymentGoal;
     monthly?: { startMonth: number; amount: number };
     lump?: { month: number; amount: number };
+    payoffReserve?: number;
   };
   annualInsuranceRate?: number;
 }
@@ -22,6 +23,8 @@ export interface PaymentRow {
   scheduledPrincipal: number;
   interest: number;
   prepayment: number;
+  /** Portion of prepayment funded by the existing mortgage reserve. */
+  fromReserve?: number;
   insurance: number;
   balance: number;
 }
@@ -101,6 +104,9 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
   }
 
   const originalBalance = toCents(principal);
+  const payoffReserve = prepayment?.payoffReserve ?? 0;
+  requireNumber(payoffReserve, 'Payoff reserve', 0, Number.MAX_SAFE_INTEGER / 100);
+  const reserveCents = toCents(payoffReserve);
   const monthlyExtra = toCents(prepayment?.monthly?.amount ?? 0);
   const lumpExtra = toCents(prepayment?.lump?.amount ?? 0);
   let balance = originalBalance;
@@ -132,8 +138,11 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
 
     const recurring = prepayment?.monthly && month >= prepayment.monthly.startMonth ? monthlyExtra : 0;
     const oneOff = prepayment?.lump?.month === month ? lumpExtra : 0;
-    const extra = Math.min(balance - scheduledPrincipal, recurring + oneOff);
-    balance -= scheduledPrincipal + extra;
+    const otherExtra = Math.min(balance - scheduledPrincipal, recurring + oneOff);
+    balance -= scheduledPrincipal + otherExtra;
+    const fromReserve = balance <= reserveCents ? balance : 0;
+    const extra = otherExtra + fromReserve;
+    balance -= fromReserve;
     interestSum += interest;
     extraSum += extra;
     insuranceSum += insurance;
@@ -145,6 +154,7 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
       scheduledPrincipal: toRubles(scheduledPrincipal),
       interest: toRubles(interest),
       prepayment: toRubles(extra),
+      ...(fromReserve > 0 ? { fromReserve: toRubles(fromReserve) } : {}),
       insurance: toRubles(insurance),
       balance: toRubles(balance),
     });

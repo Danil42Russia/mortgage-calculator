@@ -19,6 +19,7 @@ export interface Scenario {
   extraStart: number;
   lump: number;
   lumpMonth: number;
+  payoffReserve: number;
   change: boolean;
   changeMonth: number;
   changeRate: number;
@@ -47,6 +48,7 @@ export const DEFAULT_SCENARIO: Readonly<Scenario> = Object.freeze({
   extraStart: 1,
   lump: 0,
   lumpMonth: 12,
+  payoffReserve: 0,
   change: false,
   changeMonth: 25,
   changeRate: 14,
@@ -85,7 +87,7 @@ export type ScenarioResult =
 export function evaluateScenario(scenario: Readonly<Scenario>): ScenarioResult {
   const {
     program, region, children, price, down, rate, years, type, goal, extra, extraStart, lump, lumpMonth,
-    change, changeMonth, changeRate, familyRate, insurance, fees, income, debts,
+    change, changeMonth, changeRate, familyRate, insurance, fees, income, debts, payoffReserve,
   } = scenario;
   const family = program === 'family' ? familyTerms(region, children) : null;
   const annualRate = family?.rate ?? (program === 'market' ? MARKET_RATE : rate);
@@ -113,12 +115,13 @@ export function evaluateScenario(scenario: Readonly<Scenario>): ScenarioResult {
     input.rateChange = { month: changeMonth, annualRate: changeRate };
   }
 
-  const baseline = extra > 0 || lump > 0 ? calculateMortgage(input) : null;
+  const baseline = extra > 0 || lump > 0 || payoffReserve > 0 ? calculateMortgage(input) : null;
   if (baseline) {
     input.prepayment = {
       goal,
       monthly: { startMonth: extraStart, amount: extra },
       lump: { month: lumpMonth, amount: lump },
+      payoffReserve,
     };
   }
   const result = calculateMortgage(input);

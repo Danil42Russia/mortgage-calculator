@@ -91,3 +91,16 @@ test('a projection without mortgage payments starts with salary alone', () => {
   assert.deepEqual(projection[0], { payment: 0, remaining: 304_500, accumulated: 304_500 });
   assert.equal(projection[479].accumulated, income.annualNet * 40);
 });
+
+test('the salary projection deducts regular and extra salary payments, while the payoff uses existing savings', () => {
+  const loan = calculateMortgage({
+    principal: 120_000, annualRate: 0, months: 12, paymentType: 'annuity',
+    prepayment: { goal: 'term', payoffReserve: 60_000, lump: { month: 5, amount: 10_000 } },
+  });
+  const months = projectSalary(50_000, 12, loan.rows);
+  assert.equal(loan.rows.length, 5);
+  assert.equal(loan.rows[4].fromReserve, 60_000);
+  assert.equal(months[4].payment, 20_000);
+  assert.equal(months[5].payment, 0);
+  assert.equal(months[11].accumulated, 540_000);
+});
