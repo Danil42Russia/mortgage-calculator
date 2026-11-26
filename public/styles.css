@@ -120,7 +120,7 @@ details summary:hover { color: var(--accent-dark); }
 .payment-value strong { font-size: clamp(32px, 4.7vw, 58px); font-weight: 760; letter-spacing: -.055em; line-height: 1.08; }
 .payment-value > span { color: #e4d4f7; font-size: 15px; white-space: nowrap; }
 .payment-note { color: #e4d4f7; font-size: 13px; margin-top: 7px; line-height: 1.4; }
-.result-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 20px; border-top: 1px solid #eee6f73a; padding-top: 15px; }
+.result-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 20px; border-top: 1px solid #eee6f73a; padding-top: 15px; }
 .result-stats > div { display: flex; flex-direction: column; gap: 5px; }
 .result-stats span { font-size: 12px; color: #e4d4f7; line-height: 1.25; }
 .result-stats strong { font-size: clamp(16px, 1.9vw, 23px); font-weight: 720; letter-spacing: -.032em; font-variant-numeric: tabular-nums; line-height: 1.15; }

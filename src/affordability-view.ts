@@ -190,6 +190,7 @@ export function setupAffordability(onChange: () => void) {
     budgetText('loan', quote ? money(quote.principal) : '—');
     budgetElement('result-stats').hidden = monthlyIncome === 0;
     budgetText('price', quote ? money(quote.price) : '—');
+    budgetText('down-summary', quote ? money(quote.downPayment) : '—');
     budgetText('payment', quote ? decimal(quote.payment) + '\u00a0₽' : '—');
     budgetText('reserve-summary', quote ? money(quote.reserve) : '—');
     budgetElement('monthly-left').hidden = !quote;
