@@ -154,7 +154,7 @@ export function setupAffordability(
     budgetText('payment', quote ? decimal(quote.payment) + '\u00a0₽' : '—');
     budgetText('reserve-summary', quote ? money(quote.reserve) : '—');
     budgetElement('monthly-left').hidden = !quote;
-    budgetText('monthly-left', quote ? 'После ипотеки остаётся ' + money(quote.remainingIncome) + ' в месяц.' : '');
+    if (quote) budgetText('monthly-left-amount', decimal(quote.remainingIncome) + '\u00a0₽');
     budgetText('result-note', quote
       ? (hasSavings ? 'С учётом накоплений' : 'По доходу') + ' · платёж ' + decimal(quote.debtSharePercent) + '% зарплаты на руки'
       : monthlyIncome ? 'Оценка для одного заёмщика' : 'Введите зарплату, чтобы начать расчёт.');
