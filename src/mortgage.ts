@@ -199,6 +199,11 @@ export function halfRepaidMonth(result: MortgageResult): number | undefined {
   return result.rows.find(row => row.balance <= result.principal / 2)?.month;
 }
 
+export function bankPaymentRatios({ principal, totalPaid, totalInterest }: MortgageResult) {
+  if (principal === 0) return null;
+  return { total: totalPaid / principal, interest: totalInterest / principal };
+}
+
 export function cumulativeBankPayments(rows: readonly PaymentRow[]) {
   const paid = [0];
   const interest = [0];

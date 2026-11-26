@@ -1,6 +1,6 @@
 import { durationAxis, SeriesChart } from './chart.ts';
 import { decimal, firstPaymentYear, formatPaymentMonth, formatTerm } from './format.ts';
-import { cumulativeBankPayments, halfRepaidMonth, summarizeSchedule } from './mortgage.ts';
+import { bankPaymentRatios, cumulativeBankPayments, halfRepaidMonth, summarizeSchedule } from './mortgage.ts';
 import type { MortgageResult } from './mortgage.ts';
 
 interface MortgageChartData {
@@ -16,20 +16,23 @@ export function setupBankPaymentsChart(card: HTMLElement) {
   const plot = new SeriesChart(card.querySelector('canvas')!, card.querySelector<HTMLElement>('.chart-tooltip')!,
     card.querySelector<HTMLElement>('[role=status]')!);
   const total = card.querySelector<HTMLElement>('[data-total]')!;
+  const totalMultiple = card.querySelector<HTMLElement>('[data-total-multiple]')!;
   const principal = card.querySelector<HTMLElement>('[data-principal]')!;
   const overpayment = card.querySelector<HTMLElement>('[data-interest]')!;
-  const ratio = card.querySelector<HTMLElement>('[data-interest-share]')!;
+  const interestShare = card.querySelector<HTMLElement>('[data-interest-share]')!;
 
   return (result: MortgageResult | null) => {
-    card.hidden = !result?.rows.length;
-    if (!result?.rows.length) {
+    const ratios = result && bankPaymentRatios(result);
+    card.hidden = !ratios;
+    if (!result || !ratios) {
       plot.setSeries(null);
       return;
     }
     total.textContent = rubles(result.totalPaid);
+    totalMultiple.textContent = decimal(ratios.total);
     principal.textContent = rubles(result.principal);
     overpayment.textContent = rubles(result.totalInterest);
-    ratio.textContent = decimal(100 * result.totalInterest / result.principal) + '\u00a0% от суммы кредита';
+    interestShare.textContent = decimal(100 * ratios.interest) + '\u00a0% от суммы кредита (' + decimal(ratios.interest) + '×)';
     const { paid, interest } = cumulativeBankPayments(result.rows);
     plot.setSeries({
       values: paid, label: 'Всего банку',

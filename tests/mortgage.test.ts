@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { calculateMortgage, calculateReservePayoff, cumulativeBankPayments, halfRepaidMonth, summarizeSchedule } from '../src/mortgage.ts';
+import { bankPaymentRatios, calculateMortgage, calculateReservePayoff, cumulativeBankPayments, halfRepaidMonth, summarizeSchedule } from '../src/mortgage.ts';
 import type { MortgageInput } from '../src/mortgage.ts';
 
 const loan: MortgageInput = { principal: 1_200_000, annualRate: 12, months: 12, paymentType: 'annuity' };
@@ -31,10 +31,19 @@ test('cumulative bank payments include extra principal once and keep insurance s
   });
   assert.equal(result.totalInsurance, 10);
   assert.equal(result.rows[1].fromReserve, 283.33);
+  assert.deepEqual(bankPaymentRatios(result), { total: 1021.34 / 1000.01, interest: 21.33 / 1000.01 });
   const values = cumulativeBankPayments(result.rows);
   assert.deepEqual(values, { paid: [0, 443.34, 1_021.34], interest: [0, 10, 21.33] });
   assert.equal(values.paid.at(-1), result.totalPaid);
   assert.equal(values.interest.at(-1), result.totalInterest);
+});
+
+test('repayment and overpayment multiples are measured against the original principal', () => {
+  const result = calculateMortgage({ ...loan, principal: 1000, annualRate: 0 });
+  assert.deepEqual(bankPaymentRatios(result), { total: 1, interest: 0 });
+  assert.equal(bankPaymentRatios(calculateMortgage({ ...loan, principal: 0 })), null);
+  const withInterest = calculateMortgage({ ...loan, paymentType: 'declining', annualRate: 48, months: 60 });
+  assert.deepEqual(bankPaymentRatios(withInterest), { total: 2.22, interest: 1.22 });
 });
 
 test('cumulative interest stays zero on an interest-free loan and both series start at zero', () => {
