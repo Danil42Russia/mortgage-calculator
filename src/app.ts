@@ -1,6 +1,8 @@
 import { BalanceChart } from './chart.ts';
 import { setupAffordability } from './affordability-view.ts';
 import type { BudgetScenario } from './affordability-view.ts';
+import { calculatorHash, parseCalculatorHash, readChoiceParam, readNumberParam } from './calculator-uri.ts';
+import type { CalculatorRoute } from './calculator-uri.ts';
 import { decimal, formatTerm, integer, money, numberFromInput, yearWord } from './format.ts';
 import { bindMoneyGrouping } from './money-input.ts';
 import { DEFAULT_SCENARIO, evaluateScenario, FAMILY_MONTHS, familyTerms, MARKET_RATE } from './scenario.ts';
@@ -237,6 +239,7 @@ function showResult() {
 function render(edited?: NumericKey) {
   showInputs(edited);
   showResult();
+  queueAddressUpdate();
 }
 
 function setPrice(value: number) {
@@ -319,6 +322,7 @@ element<HTMLInputElement>('change').addEventListener('change', event => {
 element('down-toggle').addEventListener('click', () => {
   state.downMode = state.downMode === 'currency' ? 'percent' : 'currency';
   showInputs();
+  queueAddressUpdate();
   element('down').focus();
 });
 
@@ -391,6 +395,11 @@ const budgetCalculator = element('affordability');
 const priceNavigation = document.querySelector<HTMLAnchorElement>('nav a[href="#calculator"]')!;
 const budgetNavigation = document.querySelector<HTMLAnchorElement>('nav a[href="#affordability"]')!;
 const scheduleNavigation = document.querySelector<HTMLAnchorElement>('.nav-schedule')!;
+const destinationLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>(
+  'a[href="#calculator"], a[href="#affordability"], a[href="#schedule"]',
+)).map(link => ({ link, route: parseCalculatorHash(link.hash).route }));
+let activeRoute = parseCalculatorHash(window.location.hash).route;
+let addressTimer: number | undefined;
 
 function canShowBudgetSchedule(scenario: BudgetScenario) {
   return (Object.keys(scenario) as Array<keyof BudgetScenario>).every(key => {
@@ -399,17 +408,16 @@ function canShowBudgetSchedule(scenario: BudgetScenario) {
   });
 }
 
-const resetBudget = setupAffordability(canShowBudgetSchedule, scenario => {
+const budgetView = setupAffordability(canShowBudgetSchedule, scenario => {
   state = { ...DEFAULT_SCENARIO, ...scenario, program: scenario.rate === MARKET_RATE ? 'market' : 'custom' };
   element<HTMLDetailsElement>('extra-details').open = false;
   element<HTMLDetailsElement>('more-details').open = false;
   render();
-  window.location.hash = 'schedule';
-});
+  navigate('schedule');
+}, queueAddressUpdate);
 
-function syncCalculatorMode() {
-  const byBudget = window.location.hash === '#affordability';
-  const changed = priceCalculator.hidden !== byBudget;
+function syncCalculatorMode(scroll: boolean) {
+  const byBudget = activeRoute === 'affordability';
   priceCalculator.hidden = byBudget;
   budgetCalculator.hidden = !byBudget;
   scheduleNavigation.hidden = byBudget;
@@ -418,29 +426,125 @@ function syncCalculatorMode() {
   priceNavigation.removeAttribute('aria-current');
   budgetNavigation.removeAttribute('aria-current');
   (byBudget ? budgetNavigation : priceNavigation).setAttribute('aria-current', 'page');
-  element<HTMLAnchorElement>('back-to-top').hash = byBudget ? 'affordability' : 'calculator';
-
-  if (changed && window.location.hash === '#schedule') {
+  if (activeRoute === 'schedule') {
     element('schedule').scrollIntoView();
-  } else if (changed) {
+  } else if (scroll) {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
 }
 
+function addressFor(route: CalculatorRoute) {
+  return route === 'affordability' ? budgetView.hash() : calculatorHash(route, state, DEFAULT_SCENARIO);
+}
+
+function destinationFor(link: HTMLAnchorElement, route: CalculatorRoute): CalculatorRoute {
+  return link.id === 'back-to-top' && activeRoute === 'affordability' ? 'affordability' : route;
+}
+
+function updateLinkTargets() {
+  const addresses = {
+    calculator: addressFor('calculator'), affordability: addressFor('affordability'), schedule: addressFor('schedule'),
+  };
+  for (const { link, route } of destinationLinks) link.href = addresses[destinationFor(link, route)];
+}
+
+function syncAddress() {
+  window.clearTimeout(addressTimer);
+  const hash = addressFor(activeRoute);
+  if (hash !== window.location.hash && (window.location.hash || hash !== '#calculator')) {
+    window.history.replaceState(window.history.state, '', hash);
+  }
+  updateLinkTargets();
+}
+
+function queueAddressUpdate() {
+  window.clearTimeout(addressTimer);
+  addressTimer = window.setTimeout(syncAddress, 180);
+}
+
+function navigate(route: CalculatorRoute) {
+  syncAddress();
+  const hash = addressFor(route);
+  if (hash !== window.location.hash) window.history.pushState(null, '', hash);
+  activeRoute = route;
+  syncCalculatorMode(true);
+  updateLinkTargets();
+}
+
+function restoreScenario(params: URLSearchParams) {
+  const next = { ...DEFAULT_SCENARIO };
+  for (const key of numericKeys) {
+    const [min, max] = limits[key];
+    const value = readNumberParam(params, key, min, max, fractional.has(key));
+    if (value !== undefined) next[key] = value;
+  }
+  next.down = Math.min(next.down, next.price);
+  next.children = readNumberParam(params, 'children', 1, 5) ?? next.children;
+  next.program = readChoiceParam(params, 'program', ['market', 'family', 'custom']) ?? next.program;
+  next.region = readChoiceParam(params, 'region', ['other', 'capital']) ?? next.region;
+  next.downMode = readChoiceParam(params, 'downMode', ['currency', 'percent']) ?? next.downMode;
+  next.type = readChoiceParam(params, 'type', ['annuity', 'declining']) ?? next.type;
+  next.goal = readChoiceParam(params, 'goal', ['term', 'payment']) ?? next.goal;
+  next.change = params.get('change') === 'true';
+  state = next;
+  element<HTMLDetailsElement>('extra-details').open = state.extra > 0 || state.lump > 0;
+  element<HTMLDetailsElement>('more-details').open = state.type !== 'annuity' || state.change
+    || state.insurance > 0 || state.fees > 0 || state.income > 0 || state.debts > 0;
+  render();
+}
+
+function restoreAddress() {
+  window.clearTimeout(addressTimer);
+  const { route, params } = parseCalculatorHash(window.location.hash);
+  activeRoute = route;
+  if (route === 'affordability') budgetView.restore(params);
+  else restoreScenario(params);
+  syncCalculatorMode(true);
+  updateLinkTargets();
+}
+
+for (const { link, route } of destinationLinks) {
+  link.addEventListener('click', event => {
+    if (event.defaultPrevented || event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    navigate(destinationFor(link, route));
+  });
+}
+
+let shareTimer: number | undefined;
+element('share-link').addEventListener('click', async () => {
+  syncAddress();
+  const address = window.location.href;
+  try {
+    await navigator.clipboard.writeText(address);
+    element('share-label').textContent = 'Скопировано';
+    element('share-status').textContent = 'Ссылка на расчёт скопирована';
+    window.clearTimeout(shareTimer);
+    shareTimer = window.setTimeout(() => {
+      element('share-label').textContent = 'Ссылка';
+      element('share-status').textContent = '';
+    }, 1800);
+  } catch {
+    const input = element<HTMLInputElement>('share-address');
+    input.value = address;
+    element<HTMLDialogElement>('share-dialog').showModal();
+    input.select();
+  }
+});
+
 element('reset').addEventListener('click', () => {
   if (!budgetCalculator.hidden) {
-    resetBudget();
+    budgetView.restore();
+    syncAddress();
     element('budget-live').textContent = 'Условия расчёта по бюджету сброшены';
     return;
   }
-  state = { ...DEFAULT_SCENARIO };
-  element<HTMLDetailsElement>('extra-details').open = false;
-  element<HTMLDetailsElement>('more-details').open = false;
-  render();
+  restoreScenario(new URLSearchParams());
+  syncAddress();
   live.textContent = 'Условия сброшены';
 });
 
 showComparison();
-render();
-syncCalculatorMode();
-window.addEventListener('hashchange', syncCalculatorMode);
+if (activeRoute === 'affordability') render();
+restoreAddress();
+window.addEventListener('hashchange', restoreAddress);

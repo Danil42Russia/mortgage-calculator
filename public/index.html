@@ -21,9 +21,19 @@
         <a href="#affordability">По бюджету</a>
         <a class="nav-schedule" href="#schedule">График платежей</a>
       </nav>
-      <button class="reset" id="reset" type="button"><span aria-hidden="true">↺</span> Сбросить</button>
+      <div class="topbar-actions">
+        <button class="outline-button" id="share-link" type="button" aria-label="Скопировать ссылку на расчёт"><span aria-hidden="true">↗</span><span id="share-label">Ссылка</span></button>
+        <button class="reset" id="reset" type="button"><span aria-hidden="true">↺</span> Сбросить</button>
+      </div>
     </div>
   </header>
+  <div class="sr-only" id="share-status" role="status"></div>
+  <dialog class="share-dialog" id="share-dialog" aria-labelledby="share-title">
+    <h2 id="share-title">Ссылка на расчёт</h2>
+    <p>Скопируйте адрес, чтобы передать текущие параметры.</p>
+    <input id="share-address" type="text" aria-label="Адрес расчёта" readonly autofocus>
+    <form method="dialog"><button class="outline-button" type="submit">Закрыть</button></form>
+  </dialog>
   <main class="shell" id="calculator">
     <div class="intro">
       <p class="tag"><span></span> Ипотека в России · 2026</p>

@@ -1,5 +1,6 @@
 import { calculateAffordability } from './affordability.ts';
 import type { AffordabilityInput } from './affordability.ts';
+import { calculatorHash, readChoiceParam, readNumberParam } from './calculator-uri.ts';
 import { BalanceChart } from './chart.ts';
 import { decimal, integer, money, monthWord, numberFromInput, yearWord } from './format.ts';
 import { bindMoneyGrouping } from './money-input.ts';
@@ -10,6 +11,7 @@ import { MARKET_RATE } from './scenario.ts';
 
 type BudgetState = Omit<AffordabilityInput, 'months' | 'monthlyIncome' | 'livingCosts' | 'monthlyDebts' | 'monthlyRemainder'> & {
   salary: number | null;
+  salaryMode: 'net' | 'gross';
   years: number;
   purchaseCosts: number;
 };
@@ -25,6 +27,7 @@ export type BudgetScenario = {
 
 const defaults: Readonly<BudgetState> = {
   salary: null,
+  salaryMode: 'gross',
   savings: null,
   purchaseCosts: 0,
   annualRate: MARKET_RATE,
@@ -44,9 +47,9 @@ const fields = {
   minimumDownPercent: { id: 'down-percent', min: 0, max: 99.99, decimal: true },
   maxDebtSharePercent: { id: 'debt-share', min: 0, max: 100, decimal: true },
   purchaseCosts: { id: 'purchase-costs', min: 0, max: moneyLimit, money: true },
-} satisfies Record<keyof BudgetState, { id: string; min: number; max: number; decimal?: boolean; money?: boolean }>;
+} satisfies Record<Exclude<keyof BudgetState, 'salaryMode'>, { id: string; min: number; max: number; decimal?: boolean; money?: boolean }>;
 
-type FieldKey = keyof BudgetState;
+type FieldKey = keyof typeof fields;
 const keys = Object.keys(fields) as FieldKey[];
 
 function budgetElement<T extends HTMLElement = HTMLElement>(id: string): T {
@@ -99,9 +102,9 @@ function showSalaryFlow(estimate: SalaryEstimate | null, monthlyIncome: number, 
 export function setupAffordability(
   canShowSchedule: (scenario: BudgetScenario) => boolean,
   showSchedule: (scenario: BudgetScenario) => void,
+  onChange: () => void,
 ) {
   let state: BudgetState = { ...defaults };
-  let salaryMode: 'net' | 'gross' = 'gross';
   let scenario: BudgetScenario | null = null;
   const reserveButtons = document.querySelectorAll<HTMLButtonElement>('[data-reserve-months]');
   const incomeModes = document.querySelectorAll<HTMLInputElement>('input[name="budget-income-mode"]');
@@ -120,7 +123,7 @@ export function setupAffordability(
   }
 
   function render() {
-    const { salary, years, purchaseCosts, ...budget } = state;
+    const { salary, salaryMode, years, purchaseCosts, ...budget } = state;
     const months = years * 12;
     const gross = salaryMode === 'gross';
     const estimate = gross && salary ? estimateSalary2026(salary) : null;
@@ -207,6 +210,7 @@ export function setupAffordability(
       fees: purchaseCosts,
     } : null;
     budgetElement('detail-link').hidden = !scenario || !canShowSchedule(scenario);
+    onChange();
     return quote;
   }
 
@@ -257,7 +261,7 @@ export function setupAffordability(
   }));
 
   incomeModes.forEach(input => input.addEventListener('change', () => {
-    salaryMode = input.value === 'gross' ? 'gross' : 'net';
+    state.salaryMode = input.value === 'gross' ? 'gross' : 'net';
     render();
   }));
 
@@ -270,15 +274,22 @@ export function setupAffordability(
     if (scenario && canShowSchedule(scenario)) showSchedule(scenario);
   });
 
-  function reset() {
-    state = { ...defaults };
-    salaryMode = 'gross';
-    incomeModes.forEach(input => { input.checked = input.value === salaryMode; });
-    budgetElement<HTMLDetailsElement>('terms').open = false;
+  function restore(params: URLSearchParams = new URLSearchParams()) {
+    const next = { ...defaults };
+    for (const key of keys) {
+      const field = fields[key];
+      const value = readNumberParam(params, key, field.min, field.max, 'decimal' in field);
+      if (value !== undefined) next[key] = value;
+    }
+    next.salaryMode = readChoiceParam(params, 'salaryMode', ['gross', 'net']) ?? defaults.salaryMode;
+    state = next;
+    incomeModes.forEach(input => { input.checked = input.value === state.salaryMode; });
+    budgetElement<HTMLDetailsElement>('terms').open = state.annualRate !== defaults.annualRate
+      || state.years !== defaults.years || state.minimumDownPercent !== defaults.minimumDownPercent || state.purchaseCosts > 0;
     keys.forEach(updateField);
     render();
   }
 
-  reset();
-  return reset;
+  restore();
+  return { restore, hash: () => calculatorHash('affordability', state, defaults) };
 }
