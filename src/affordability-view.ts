@@ -16,6 +16,7 @@ type BudgetState = Omit<AffordabilityInput, 'months' | 'monthlyIncome' | 'living
   salaryMode: 'net' | 'gross';
   salaryPeriod: 'year' | 'term';
   useReserve: boolean;
+  monthlyExtra: number;
   years: number;
   purchaseCosts: number;
 };
@@ -25,6 +26,7 @@ const defaults: Readonly<BudgetState> = {
   salaryMode: 'gross',
   salaryPeriod: 'year',
   useReserve: false,
+  monthlyExtra: 0,
   savings: null,
   purchaseCosts: 0,
   annualRate: MARKET_RATE,
@@ -37,6 +39,7 @@ const defaults: Readonly<BudgetState> = {
 const moneyLimit = 1_000_000_000;
 const fields = {
   salary: { id: 'income', min: 0, max: moneyLimit, money: true },
+  monthlyExtra: { id: 'monthly-extra', min: 0, max: moneyLimit, money: true },
   savings: { id: 'savings', min: 0, max: moneyLimit, money: true },
   reserveMonths: { id: 'reserve-months', min: 0, max: 120 },
   annualRate: { id: 'rate', min: 0, max: 40, decimal: true },
@@ -159,7 +162,7 @@ export function setupAffordability(onChange: () => void) {
   }
 
   function render() {
-    const { salary, salaryMode, salaryPeriod, years, purchaseCosts, useReserve, ...budget } = state;
+    const { salary, salaryMode, salaryPeriod, years, purchaseCosts, useReserve, monthlyExtra, ...budget } = state;
     const months = years * 12;
     const gross = salaryMode === 'gross';
     const estimate = gross && salary ? estimateSalary2026(salary) : null;
@@ -178,6 +181,7 @@ export function setupAffordability(onChange: () => void) {
     budgetText('share-hint', monthlyIncome ? 'До ' + decimal(result.paymentBudget) + '\u00a0₽ в месяц из зарплаты на руки.'
       : 'Какой процент зарплаты на руки вы готовы отдавать за ипотеку.');
     budgetText('terms-summary', decimal(state.annualRate) + '% · ' + years + ' ' + yearWord(years));
+    budgetText('extra-summary', monthlyExtra ? money(monthlyExtra) + '/мес.' : 'По желанию');
 
     for (const button of reserveButtons) {
       button.setAttribute('aria-pressed', String(Number(button.dataset.reserveMonths) === state.reserveMonths));
@@ -189,9 +193,8 @@ export function setupAffordability(onChange: () => void) {
     budgetText('payment', quote ? decimal(quote.payment) + '\u00a0₽' : '—');
     budgetText('reserve-summary', quote ? money(quote.reserve) : '—');
     budgetElement('monthly-left').hidden = !quote;
-    if (quote) budgetText('monthly-left-amount', decimal(quote.remainingIncome) + '\u00a0₽');
     budgetText('result-note', quote
-      ? (hasSavings ? 'С учётом накоплений' : 'По доходу') + ' · платёж ' + decimal(quote.debtSharePercent) + '% зарплаты на руки'
+      ? (hasSavings ? 'С учётом накоплений' : 'По доходу') + ' · обязательный платёж ' + decimal(quote.debtSharePercent) + '% зарплаты на руки'
       : monthlyIncome ? 'Оценка для одного заёмщика' : 'Введите зарплату, чтобы начать расчёт.');
 
     let notice = '';
@@ -212,28 +215,36 @@ export function setupAffordability(onChange: () => void) {
       annualRate: budget.annualRate,
       months,
       paymentType: 'annuity',
-      prepayment: payoffReserve ? { goal: 'term', payoffReserve } : undefined,
+      prepayment: { goal: 'term', payoffReserve, monthly: { startMonth: 1, amount: monthlyExtra } },
     }) : null;
     const schedule = payoff?.schedule ?? null;
     const lastPayment = schedule?.rows.at(-1);
     budgetElement('payoff-result').hidden = !useReserve || !lastPayment;
     if (useReserve && payoff && lastPayment) {
       const fromReserve = lastPayment.fromReserve ?? 0;
-      budgetText('payoff-time', 'Экономия времени — ' + formatTerm(payoff.monthsSaved, 'long') + '.');
+      budgetText('payoff-time', 'Погашение из подушки экономит ' + formatTerm(payoff.monthsSaved, 'long') + '.');
       budgetText('payoff-details', 'Кредит закроется через ' + formatTerm(lastPayment.month, 'long')
         + ' (' + formatPaymentMonth(lastPayment.month) + ').'
         + (fromReserve ? ' Из подушки уйдёт ' + decimal(fromReserve) + '\u00a0₽.' : '')
         + ' В подушке останется ' + decimal(payoffReserve - fromReserve) + '\u00a0₽.');
     }
     const balances = salary ? projectSalary(estimate ?? salary, months, schedule?.rows ?? []) : [];
+    if (quote) {
+      const remaining = monthlyIncome - balances[0].payment;
+      const label = !monthlyExtra ? 'После ипотеки остаётся' : remaining < 0
+        ? 'Из средней зарплаты на первый платёж с доплатой не хватит' : 'Из средней зарплаты после первого платежа с доплатой останется';
+      budgetText('monthly-left-label', label);
+      budgetText('monthly-left-amount', decimal(Math.abs(remaining)) + '\u00a0₽' + (monthlyExtra ? '' : ' в месяц'));
+    }
     budgetElement('salary').hidden = !salary;
     budgetElement('open-salary').hidden = !salary;
     budgetElement('no-salary-payment').hidden = !!schedule;
     budgetText('salary-average', money(monthlyIncome));
     showSalaryChart(salaryChart, balances, salaryPeriod, schedule?.rows.length ?? months);
     showSalaryFlow(estimate, balances);
-    chart.set(schedule ? { result: schedule, baseline: null } : null);
-    updateBankPayments(schedule);
+    const baseline = payoff?.withoutMonthlyExtra ?? null;
+    chart.set(schedule ? { result: schedule, baseline } : null);
+    updateBankPayments(schedule, baseline);
     budgetElement('chart-empty').hidden = schedule !== null;
     budgetText('chart-empty', monthlyIncome ? 'График появится, когда будет рассчитана сумма кредита.'
       : 'Укажите зарплату, чтобы построить график.');
@@ -350,6 +361,7 @@ export function setupAffordability(onChange: () => void) {
     useReserveInput.checked = state.useReserve;
     incomeModes.forEach(input => { input.checked = input.value === state.salaryMode; });
     salaryPeriods.forEach(input => { input.checked = input.value === state.salaryPeriod; });
+    budgetElement<HTMLDetailsElement>('extra-options').open = state.monthlyExtra > 0;
     budgetElement<HTMLDetailsElement>('terms').open = state.annualRate !== defaults.annualRate
       || state.years !== defaults.years || state.minimumDownPercent !== defaults.minimumDownPercent || state.purchaseCosts > 0;
     keys.forEach(updateField);

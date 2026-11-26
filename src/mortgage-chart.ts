@@ -20,8 +20,12 @@ export function setupBankPaymentsChart(card: HTMLElement) {
   const principal = card.querySelector<HTMLElement>('[data-principal]')!;
   const overpayment = card.querySelector<HTMLElement>('[data-interest]')!;
   const interestShare = card.querySelector<HTMLElement>('[data-interest-share]')!;
+  const comparison = card.querySelector<HTMLElement>('[data-prepayment-comparison]')!;
+  const interestSaved = comparison.querySelector<HTMLElement>('[data-interest-saved]')!;
+  const timeSaved = comparison.querySelector<HTMLElement>('[data-time-saved]')!;
+  const multiples = comparison.querySelector<HTMLElement>('[data-interest-multiples]')!;
 
-  return (result: MortgageResult | null) => {
+  return (result: MortgageResult | null, baseline: MortgageResult | null) => {
     const ratios = result && bankPaymentRatios(result);
     card.hidden = !ratios;
     if (!result || !ratios) {
@@ -33,6 +37,12 @@ export function setupBankPaymentsChart(card: HTMLElement) {
     principal.textContent = rubles(result.principal);
     overpayment.textContent = rubles(result.totalInterest);
     interestShare.textContent = decimal(100 * ratios.interest) + '\u00a0% от суммы кредита (' + decimal(ratios.interest) + '×)';
+    comparison.hidden = !baseline;
+    if (baseline) {
+      interestSaved.textContent = rubles(baseline.totalInterest - result.totalInterest);
+      timeSaved.textContent = formatTerm(baseline.rows.length - result.rows.length, 'long');
+      multiples.textContent = decimal(baseline.totalInterest / baseline.principal) + '× → ' + decimal(ratios.interest) + '×';
+    }
     const { paid, interest } = cumulativeBankPayments(result.rows);
     plot.setSeries({
       values: paid, label: 'Всего банку',
@@ -51,8 +61,7 @@ export function setupMortgageChart(card: HTMLElement, onModeChange: () => void) 
   const controls = card.querySelector('fieldset')!;
   const radios = controls.querySelectorAll('input');
   const caption = card.querySelector<HTMLElement>('.debt-chart-caption')!;
-  const balanceLegend = card.querySelector<HTMLElement>('#chart-legend');
-  const baselineLegend = card.querySelector<HTMLElement>('#base-legend');
+  const balanceLegend = card.querySelector<HTMLElement>('.balance-legend')!;
   const paymentLegend = card.querySelector<HTMLElement>('.payment-legend')!;
   const note = card.querySelector<HTMLElement>('.debt-chart-note')!;
   canvas.setAttribute('aria-describedby', note.id);
@@ -64,8 +73,7 @@ export function setupMortgageChart(card: HTMLElement, onModeChange: () => void) 
     controls.hidden = !data;
     caption.hidden = !data;
     paymentLegend.hidden = !data || !payments;
-    if (balanceLegend) balanceLegend.hidden = !data || payments;
-    if (baselineLegend) baselineLegend.hidden = !data?.baseline || payments;
+    balanceLegend.hidden = !data?.baseline || payments;
     note.hidden = !data;
     note.textContent = '';
     if (!data) {
@@ -106,7 +114,8 @@ export function setupMortgageChart(card: HTMLElement, onModeChange: () => void) 
       }
       plot.setSeries({
         values: [result.principal, ...result.rows.map(row => row.balance)],
-        comparison: baseline ? { values: [baseline.principal, ...baseline.rows.map(row => row.balance)], label: 'Без досрочных' } : undefined,
+        label: baseline ? 'С доплатой' : undefined,
+        comparison: baseline ? { values: [baseline.principal, ...baseline.rows.map(row => row.balance)], label: 'Без ежемесячной доплаты' } : undefined,
         marker,
         axisStep: 12,
         axisLabel: durationAxis,

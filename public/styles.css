@@ -140,13 +140,15 @@ details summary:hover { color: var(--accent-dark); }
 .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; margin-top: 4px; color: var(--muted); font-size: 12px; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { display: inline-block; width: 15px; height: 3px; border-radius: 3px; background: var(--accent); }
-#base-legend i, .interest-legend i { background: repeating-linear-gradient(to right, #907bb8 0 4px, transparent 4px 7px); }
+.baseline-legend i, .interest-legend i { background: repeating-linear-gradient(to right, #907bb8 0 4px, transparent 4px 7px); }
 .bank-payments { container-type: inline-size; }
 .bank-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 15px 0; }
 .bank-totals dt { color: var(--muted); font-size: 13px; }
 .bank-totals dd { margin: 3px 0 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .bank-totals dd:first-of-type { font-size: 18px; font-weight: 700; }
 .bank-totals [data-total] { color: var(--accent-dark); }
+.prepayment-comparison { padding-top: 12px; border-top: 1px solid var(--line); }
+.prepayment-comparison h3 { font-size: 15px; }
 @container (max-width: 520px) {
   .bank-totals { grid-template-columns: 1fr; gap: 6px; }
   .bank-totals > div { display: flex; align-items: baseline; flex-wrap: wrap; justify-content: space-between; column-gap: 8px; }

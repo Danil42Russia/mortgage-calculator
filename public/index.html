@@ -61,7 +61,7 @@
           </label>
           <div class="budget-income-feedback" id="budget-share-feedback">
             <p class="hint" id="budget-share-hint">Какой процент зарплаты на руки вы готовы отдавать за ипотеку.</p>
-            <p class="hint" id="budget-monthly-left" hidden>После ипотеки остаётся <strong id="budget-monthly-left-amount"></strong> в месяц.</p>
+            <p class="hint" id="budget-monthly-left" hidden><span id="budget-monthly-left-label"></span> <strong id="budget-monthly-left-amount"></strong>.</p>
           </div>
           <label class="budget-field" for="budget-savings">Накопления на сегодня
             <span class="input-frame"><input id="budget-savings" type="text" inputmode="numeric" placeholder="Например, 1 500 000" aria-describedby="budget-savings-hint"><span>₽</span></span>
@@ -88,6 +88,15 @@
             <p id="budget-payoff-details"></p>
           </div>
         </fieldset>
+        <details class="budget-terms" id="budget-extra-options">
+          <summary><span>Досрочные платежи</span><span class="budget-terms-summary" id="budget-extra-summary"></span></summary>
+          <div class="detail-content">
+            <label class="budget-field" for="budget-monthly-extra">Досрочная доплата в месяц
+              <span class="input-frame"><input id="budget-monthly-extra" type="text" inputmode="numeric" aria-describedby="budget-extra-hint"><span>₽/мес.</span></span>
+            </label>
+            <p class="hint" id="budget-extra-hint">С первого месяца эта сумма идёт из зарплаты сверх обязательного платежа и сокращает срок кредита.</p>
+          </div>
+        </details>
         <details class="budget-terms" id="budget-terms">
           <summary><span>Условия кредита</span><span class="budget-terms-summary" id="budget-terms-summary"></span></summary>
           <div class="detail-content">
@@ -109,7 +118,7 @@
             <p class="payment-note" id="budget-result-note"></p>
             <div class="result-stats" id="budget-result-stats" hidden>
               <div><span>Цена квартиры</span><strong id="budget-price">—</strong></div>
-              <div><span>Платёж в месяц</span><strong id="budget-payment">—</strong></div>
+              <div><span>Обязательный платёж</span><strong id="budget-payment">—</strong></div>
               <div><span>Подушка</span><strong id="budget-reserve-summary">—</strong></div>
             </div>
           </div>
@@ -132,6 +141,7 @@
             <div class="chart-tooltip" id="budget-chart-tooltip" hidden></div>
             <div class="sr-only" id="budget-chart-live" role="status"></div>
           </div>
+          <div class="legend balance-legend" hidden><span><i></i> С доплатой</span><span class="baseline-legend"><i></i> Без ежемесячной доплаты</span></div>
           <div class="legend payment-legend" hidden><span><i></i> Основной долг</span><span><i></i> Проценты</span></div>
           <p class="hint debt-chart-note" id="budget-chart-note" hidden></p>
         </section>
@@ -242,6 +252,14 @@
       <div><dt>Выплаты за весь срок</dt><dd data-total></dd><dd class="hint"><span data-total-multiple></span>&nbsp;× сумма кредита</dd></div>
       <div><dt>Переплата по процентам</dt><dd data-interest></dd><dd class="hint" data-interest-share></dd></div>
     </dl>
+    <section class="prepayment-comparison" data-prepayment-comparison hidden>
+      <h3>Что дают ежемесячные доплаты</h3>
+      <dl class="bank-totals">
+        <div><dt>Экономия на процентах</dt><dd data-interest-saved></dd></div>
+        <div><dt>Экономия времени</dt><dd data-time-saved></dd></div>
+        <div><dt>Переплата без доплаты → с доплатой</dt><dd data-interest-multiples></dd></div>
+      </dl>
+    </section>
     <p class="hint">График показывает выплаты с начала ипотеки по выбранный месяц.</p>
     <div class="chart-wrap">
       <canvas tabindex="-1" aria-label="Выплаты банку и проценты с начала ипотеки. Стрелки влево и вправо переключают годы, вверх и вниз — месяцы."></canvas>

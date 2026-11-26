@@ -108,6 +108,33 @@ test('rounding can shorten the baseline and an unused reserve saves zero months'
   assert.equal(calculateReservePayoff({ ...loan, prepayment: { goal: 'term', payoffReserve: 1 } }).monthsSaved, 0);
 });
 
+test('the monthly top-up comparison keeps the same reserve payoff in both schedules', () => {
+  const input = { ...loan, principal: 120_000 };
+  const prepayment = { goal: 'term' as const, payoffReserve: 22_000 };
+  const { schedule, withoutMonthlyExtra, monthsSaved } = calculateReservePayoff({
+    ...input, prepayment: { ...prepayment, monthly: { startMonth: 1, amount: 10_000 } },
+  });
+  assert.deepEqual(withoutMonthlyExtra, calculateMortgage({ ...input, prepayment }));
+  assert.ok(withoutMonthlyExtra);
+  assert.equal(withoutMonthlyExtra.rows.length - schedule.rows.length, 5);
+  assert.equal(kopecks(withoutMonthlyExtra.totalInterest) - kopecks(schedule.totalInterest), 359_236);
+  assert.equal(monthsSaved, 2);
+  assert.equal(schedule.firstPayment, withoutMonthlyExtra.firstPayment);
+  assert.equal(schedule.rows.at(-1)?.fromReserve, 20_725.01);
+  assert.equal(calculateReservePayoff({ ...input, prepayment }).withoutMonthlyExtra, null);
+});
+
+test('an oversized monthly top-up on an interest-free loan saves time and only pays the outstanding debt', () => {
+  const { schedule, withoutMonthlyExtra } = calculateReservePayoff({
+    ...loan, principal: 120_000, annualRate: 0, prepayment: { goal: 'term', monthly: { startMonth: 1, amount: 500_000 } },
+  });
+  assert.ok(withoutMonthlyExtra);
+  assert.equal(withoutMonthlyExtra.rows.length - schedule.rows.length, 11);
+  assert.equal(schedule.rows[0].prepayment, 110_000);
+  assert.equal(schedule.totalInterest, withoutMonthlyExtra.totalInterest);
+  assert.equal(schedule.totalPaid, 120_000);
+});
+
 test('declining payments reduce interest while scheduled principal stays constant', () => {
   const result = calculateMortgage({ ...loan, paymentType: 'declining' });
   assert.equal(result.firstPayment, 112_000);

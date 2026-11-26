@@ -182,7 +182,10 @@ export function calculateReservePayoff(input: MortgageInput) {
     const withoutReserve = calculateMortgage({ ...input, prepayment: { ...input.prepayment, payoffReserve: 0 } });
     monthsSaved = withoutReserve.rows.length - schedule.rows.length;
   }
-  return { schedule, monthsSaved };
+  const withoutMonthlyExtra = input.prepayment?.monthly?.amount
+    ? calculateMortgage({ ...input, prepayment: { ...input.prepayment, monthly: undefined } })
+    : null;
+  return { schedule, monthsSaved, withoutMonthlyExtra };
 }
 
 export interface SchedulePeriod {
