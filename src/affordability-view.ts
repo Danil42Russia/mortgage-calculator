@@ -3,7 +3,7 @@ import type { AffordabilityInput } from './affordability.ts';
 import { calculatorHash, readChoiceParam, readNumberParam } from './calculator-uri.ts';
 import { BalanceChart, durationAxis, SeriesChart } from './chart.ts';
 import { decimal, integer, money, monthWord, numberFromInput, yearWord } from './format.ts';
-import { bindMoneyGrouping } from './money-input.ts';
+import { bindMoneyGrouping, bindPercentFormatting } from './money-input.ts';
 import { calculateMortgage } from './mortgage.ts';
 import { estimateSalary2026, projectSalary } from './salary.ts';
 import type { SalaryBalance, SalaryEstimate, SalaryMonth } from './salary.ts';
@@ -274,6 +274,7 @@ export function setupAffordability(
     const field = fields[key];
     const input = budgetElement<HTMLInputElement>(field.id);
     if ('money' in field) bindMoneyGrouping(input);
+    if ('decimal' in field) bindPercentFormatting(input);
     input.addEventListener('input', () => {
       const empty = !input.value.trim();
       if (empty && !field.min) {

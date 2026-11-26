@@ -4,7 +4,7 @@ import type { BudgetScenario } from './affordability-view.ts';
 import { calculatorHash, parseCalculatorHash, readChoiceParam, readNumberParam } from './calculator-uri.ts';
 import type { CalculatorRoute } from './calculator-uri.ts';
 import { decimal, formatTerm, integer, money, numberFromInput, yearWord } from './format.ts';
-import { bindMoneyGrouping } from './money-input.ts';
+import { bindMoneyGrouping, bindPercentFormatting } from './money-input.ts';
 import { DEFAULT_SCENARIO, evaluateScenario, FAMILY_MONTHS, familyTerms, MARKET_RATE } from './scenario.ts';
 import type { Program, Scenario } from './scenario.ts';
 import { setupSchedule } from './schedule-table.ts';
@@ -135,6 +135,7 @@ function showInputs(edited?: NumericKey) {
   element<HTMLInputElement>('change').checked = state.change;
   element('family-note').textContent = 'Лимит ' + money(familyInfo.limit) + '. Для семей, где хотя бы один ребёнок младше 7 лет.';
   element('down-unit').textContent = asPercent ? '%' : '₽';
+  element<HTMLInputElement>('down').inputMode = asPercent ? 'decimal' : 'numeric';
   const unitButton = element('down-toggle');
   unitButton.textContent = asPercent ? 'Ввод в %' : decimal(downPercent()) + '%';
   unitButton.setAttribute('aria-pressed', String(asPercent));
@@ -265,6 +266,7 @@ function setNumeric(key: NumericKey, value: number, fromSlider = false) {
 for (const key of numericKeys) {
   const input = element<HTMLInputElement>(key);
   if (moneyFields.has(key)) bindMoneyGrouping(input, () => !percentInput(key));
+  if (fractional.has(key) || key === 'down') bindPercentFormatting(input, () => percentInput(key));
   input.addEventListener('input', () => {
     const value = numberFromInput(input.value, percentInput(key));
     if (!Number.isFinite(value)) {

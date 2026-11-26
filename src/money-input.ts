@@ -1,4 +1,4 @@
-import { groupMoneyWhileEditing } from './format.ts';
+import { formatPercentWhileEditing, groupMoneyWhileEditing } from './format.ts';
 
 export function bindMoneyGrouping(input: HTMLInputElement, enabled = () => true) {
   input.addEventListener('beforeinput', event => {
@@ -14,13 +14,20 @@ export function bindMoneyGrouping(input: HTMLInputElement, enabled = () => true)
       input.setSelectionRange(next, next);
     }
   });
+  bindFormatting(input, groupMoneyWhileEditing, enabled);
+}
 
-  function regroup() {
+export function bindPercentFormatting(input: HTMLInputElement, enabled = () => true) {
+  bindFormatting(input, formatPercentWhileEditing, enabled);
+}
+
+function bindFormatting(input: HTMLInputElement, format: typeof groupMoneyWhileEditing, enabled: () => boolean) {
+  function applyFormat() {
     if (!enabled()) return;
     const start = input.selectionStart;
     if (start === null) return;
 
-    const formatted = groupMoneyWhileEditing(input.value, start, input.selectionEnd ?? start);
+    const formatted = format(input.value, start, input.selectionEnd ?? start);
     if (formatted.value !== input.value) {
       const direction = input.selectionDirection ?? undefined;
       input.value = formatted.value;
@@ -29,7 +36,7 @@ export function bindMoneyGrouping(input: HTMLInputElement, enabled = () => true)
   }
 
   input.addEventListener('input', event => {
-    if (!(event instanceof InputEvent && event.isComposing)) regroup();
+    if (!(event instanceof InputEvent && event.isComposing)) applyFormat();
   });
-  input.addEventListener('compositionend', regroup);
+  input.addEventListener('compositionend', applyFormat);
 }

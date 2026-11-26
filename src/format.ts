@@ -7,10 +7,21 @@ export const decimal = (value: number) => decimals.format(value);
 export const money = (value: number) => integer(value) + '\u00a0₽';
 export const compactNumber = (value: number) => compact.format(value);
 
+function percentText(value: string) {
+  return value.replace(/\s/gu, '').replace(/%+(?:годовых)?$/iu, '').replace('.', ',');
+}
+
 export function numberFromInput(value: string, fractional: boolean): number {
-  const text = value.trim().replace(/\s/gu, '').replace(',', '.');
+  const text = fractional ? percentText(value).replace(',', '.') : value.replace(/\s/gu, '');
   const pattern = fractional ? /^-?(?:\d+(?:\.\d*)?|\.\d+)$/u : /^-?\d+$/u;
   return pattern.test(text) ? Number(text) : NaN;
+}
+
+export function formatPercentWhileEditing(value: string, start: number, end = start) {
+  const formatted = percentText(value);
+  if (formatted === value) return { value, start, end };
+  const position = (offset: number) => Math.min(formatted.length, value.slice(0, offset).replace(/\s/gu, '').length);
+  return { value: formatted, start: position(start), end: position(end) };
 }
 
 export function groupMoneyWhileEditing(value: string, start: number, end = start) {

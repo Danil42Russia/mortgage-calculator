@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { groupMoneyWhileEditing } from '../src/format.ts';
+import { formatPercentWhileEditing, groupMoneyWhileEditing, numberFromInput } from '../src/format.ts';
 import { bindMoneyGrouping } from '../src/money-input.ts';
 
 test('money input groups each new thousands block immediately', () => {
@@ -21,6 +21,25 @@ test('grouping keeps a middle caret or selection beside the same digits', () => 
 test('the formatter leaves empty and partial invalid input editable', () => {
   assert.deepEqual(groupMoneyWhileEditing('', 0), { value: '', start: 0, end: 0 });
   assert.deepEqual(groupMoneyWhileEditing('12,', 3), { value: '12,', start: 3, end: 3 });
+});
+
+test('percent input strips pasted units and localizes the decimal separator immediately', () => {
+  for (const raw of ['64,85\u202f%', '64.85\u00a0%', ' 64,85 % ', '64,85%', '64.85 % годовых']) {
+    assert.deepEqual(formatPercentWhileEditing(raw, raw.length), { value: '64,85', start: 5, end: 5 });
+    assert.equal(numberFromInput(raw, true), 64.85);
+  }
+});
+
+test('percent formatting preserves a selection, a trailing comma and fractional zeros while editing', () => {
+  assert.deepEqual(formatPercentWhileEditing(' 64.850 %', 2, 6), { value: '64,850', start: 1, end: 5 });
+  assert.deepEqual(formatPercentWhileEditing('64.', 3), { value: '64,', start: 3, end: 3 });
+  assert.deepEqual(formatPercentWhileEditing('', 0), { value: '', start: 0, end: 0 });
+});
+
+test('a percent suffix is specific to percentage fields and cannot join two different numbers', () => {
+  assert.ok(Number.isNaN(numberFromInput('64 %', false)));
+  assert.ok(Number.isNaN(numberFromInput('13 % и 15 %', true)));
+  assert.ok(Number.isNaN(numberFromInput('6%4', true)));
 });
 
 test('committing an IME edit regroups the amount without another input event', () => {
