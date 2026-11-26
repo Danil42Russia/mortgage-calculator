@@ -1,12 +1,16 @@
 import { calculateAffordability } from './affordability.ts';
 import type { AffordabilityInput } from './affordability.ts';
-import { decimal, integer, money, monthWord, numberFromInput } from './format.ts';
+import { decimal, integer, money, monthWord, numberFromInput, yearWord } from './format.ts';
 import { bindMoneyGrouping } from './money-input.ts';
 import { estimateSalary2026 } from './salary.ts';
 import type { SalaryEstimate } from './salary.ts';
 import { MARKET_RATE } from './scenario.ts';
 
-type BudgetState = Omit<AffordabilityInput, 'months' | 'monthlyIncome'> & { salary: number; years: number; purchaseCosts: number };
+type BudgetState = Omit<AffordabilityInput, 'months' | 'monthlyIncome' | 'livingCosts' | 'monthlyDebts' | 'monthlyRemainder'> & {
+  salary: number | null;
+  years: number;
+  purchaseCosts: number;
+};
 export type BudgetScenario = {
   price: number;
   down: number;
@@ -18,10 +22,7 @@ export type BudgetScenario = {
 };
 
 const defaults: Readonly<BudgetState> = {
-  salary: 150_000,
-  livingCosts: 55_000,
-  monthlyDebts: 0,
-  monthlyRemainder: 0,
+  salary: null,
   savings: null,
   purchaseCosts: 0,
   annualRate: MARKET_RATE,
@@ -35,15 +36,12 @@ const moneyLimit = 1_000_000_000;
 const fields = {
   salary: { id: 'income', min: 0, max: moneyLimit, money: true },
   savings: { id: 'savings', min: 0, max: moneyLimit, money: true },
-  livingCosts: { id: 'living', min: 0, max: moneyLimit, money: true },
-  monthlyDebts: { id: 'debts', min: 0, max: moneyLimit, money: true },
   reserveMonths: { id: 'reserve-months', min: 0, max: 120 },
   annualRate: { id: 'rate', min: 0, max: 40, decimal: true },
   years: { id: 'years', min: 1, max: 40 },
   minimumDownPercent: { id: 'down-percent', min: 0, max: 99.99, decimal: true },
   maxDebtSharePercent: { id: 'debt-share', min: 0, max: 100, decimal: true },
   purchaseCosts: { id: 'purchase-costs', min: 0, max: moneyLimit, money: true },
-  monthlyRemainder: { id: 'remainder', min: 0, max: moneyLimit, money: true },
 } satisfies Record<keyof BudgetState, { id: string; min: number; max: number; decimal?: boolean; money?: boolean }>;
 
 type FieldKey = keyof BudgetState;
@@ -62,7 +60,7 @@ const monthNames = [
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
 ];
 
-function showSalaryFlow(estimate: SalaryEstimate | null, monthlyIncome: number, expenses: number, debts: number, payment: number) {
+function showSalaryFlow(estimate: SalaryEstimate | null, monthlyIncome: number, payment: number) {
   budgetElement('salary').hidden = !estimate;
   budgetElement('open-salary').hidden = !estimate;
   if (!estimate) return;
@@ -79,8 +77,8 @@ function showSalaryFlow(estimate: SalaryEstimate | null, monthlyIncome: number, 
     month.scope = 'row';
     month.textContent = name;
     row.append(month);
-    const remaining = net - (expenses + debts + payment) * months;
-    for (const value of [gross, tax, net, expenses * months, debts * months, payment * months, remaining]) {
+    const remaining = net - payment * months;
+    for (const value of [gross, tax, net, payment * months, remaining]) {
       row.insertCell().textContent = decimal(value);
     }
     row.lastElementChild?.classList.toggle('salary-deficit', remaining < 0);
@@ -92,7 +90,7 @@ function showSalaryFlow(estimate: SalaryEstimate | null, monthlyIncome: number, 
     if (appendRow(body, monthNames[month - 1], gross, tax, net, 1) < 0) deficitMonths += 1;
   }
   appendRow(total, 'За год', estimate.annualGross, estimate.annualTax, estimate.annualNet, estimate.months.length);
-  budgetText('salary-status', deficitMonths ? 'Месяцев, в которых расходы и кредиты превышают зарплату на руки, — ' + deficitMonths + '.' : '');
+  budgetText('salary-status', deficitMonths ? 'Месяцев, в которых платёж по ипотеке превышает зарплату на руки, — ' + deficitMonths + '.' : '');
   budgetElement('salary-status').hidden = deficitMonths === 0;
 }
 
@@ -101,7 +99,7 @@ export function setupAffordability(
   showSchedule: (scenario: BudgetScenario) => void,
 ) {
   let state: BudgetState = { ...defaults };
-  let salaryMode: 'net' | 'gross' = 'net';
+  let salaryMode: 'net' | 'gross' = 'gross';
   let scenario: BudgetScenario | null = null;
   const reserveButtons = document.querySelectorAll<HTMLButtonElement>('[data-reserve-months]');
   const incomeModes = document.querySelectorAll<HTMLInputElement>('input[name="budget-income-mode"]');
@@ -120,37 +118,41 @@ export function setupAffordability(
     const { salary, years, purchaseCosts, ...budget } = state;
     const gross = salaryMode === 'gross';
     const estimate = gross && salary ? estimateSalary2026(salary) : null;
-    const monthlyIncome = estimate ? Math.floor(estimate.averageNet) : salary;
-    const result = calculateAffordability({ ...budget, monthlyIncome, months: years * 12 });
+    const monthlyIncome = estimate ? Math.floor(estimate.averageNet) : (salary ?? 0);
+    const result = calculateAffordability({
+      ...budget, monthlyIncome, months: years * 12, livingCosts: 0, monthlyDebts: 0, monthlyRemainder: 0,
+    });
     const { quote, incomeQuote } = result;
     const cash = quote ?? incomeQuote;
     const hasSavings = state.savings !== null;
 
     budgetText('income-label', gross ? 'Зарплата до НДФЛ в месяц' : 'Средняя зарплата на руки');
     budgetText('income-hint', estimate ? 'Расчётная средняя на руки — ' + money(monthlyIncome) + ' в месяц.'
-      : gross ? 'Укажите начисленную сумму за месяц.'
+      : gross ? 'Возьмите начисленную сумму за месяц из расчётного листка.'
       : 'Если сумма меняется, сложите выплаты после НДФЛ за 12 месяцев и разделите на 12.');
-    showSalaryFlow(estimate, monthlyIncome, state.livingCosts, state.monthlyDebts, quote?.payment ?? 0);
+    budgetText('share-hint', monthlyIncome ? 'До ' + decimal(result.paymentBudget) + '\u00a0₽ в месяц из зарплаты на руки.'
+      : 'Какой процент зарплаты на руки вы готовы отдавать за ипотеку.');
+    budgetText('terms-summary', decimal(state.annualRate) + '% · ' + years + ' ' + yearWord(years));
+    showSalaryFlow(estimate, monthlyIncome, quote?.payment ?? 0);
 
     for (const button of reserveButtons) {
       button.setAttribute('aria-pressed', String(Number(button.dataset.reserveMonths) === state.reserveMonths));
     }
 
     budgetText('loan', quote ? money(quote.principal) : '—');
+    budgetElement('result-stats').hidden = monthlyIncome === 0;
     budgetText('price', quote ? money(quote.price) : '—');
     budgetText('payment', quote ? decimal(quote.payment) + '\u00a0₽' : '—');
     budgetText('reserve-summary', quote ? money(quote.reserve) : '—');
     budgetElement('monthly-left').hidden = !quote;
-    budgetText('monthly-left', quote ? 'После обязательных расходов и кредитов остаётся ' + money(quote.remainingIncome) + ' в месяц.' : '');
+    budgetText('monthly-left', quote ? 'После ипотеки остаётся ' + money(quote.remainingIncome) + ' в месяц.' : '');
     budgetText('result-note', quote
-      ? (hasSavings ? 'С учётом накоплений' : 'По доходу') + ' · все кредиты ' + decimal(quote.debtSharePercent) + '% зарплаты'
-      : 'Оценка для одного заёмщика');
+      ? (hasSavings ? 'С учётом накоплений' : 'По доходу') + ' · платёж ' + decimal(quote.debtSharePercent) + '% зарплаты на руки'
+      : monthlyIncome ? 'Оценка для одного заёмщика' : 'Введите зарплату, чтобы начать расчёт.');
 
     let notice = '';
     if (!incomeQuote) {
-      notice = monthlyIncome
-        ? 'При выбранных расходах и лимите платежей месячного бюджета на ипотеку не хватает.'
-        : gross ? 'Укажите зарплату до НДФЛ для расчёта.' : 'Укажите среднюю зарплату на руки для расчёта.';
+      if (monthlyIncome) notice = 'При выбранной доле зарплаты платёж слишком мал для расчёта ипотеки.';
     } else if (result.limitingFactor === 'savings') {
       const gap = money(result.additionalSavingsForIncomeQuote ?? 0);
       notice = quote
@@ -184,7 +186,7 @@ export function setupAffordability(
       rate: state.annualRate,
       years,
       income: monthlyIncome,
-      debts: state.monthlyDebts,
+      debts: 0,
       fees: purchaseCosts,
     } : null;
     budgetElement('detail-link').hidden = !scenario || !canShowSchedule(scenario);
@@ -192,7 +194,7 @@ export function setupAffordability(
   }
 
   function setValue(key: FieldKey, value: number | null) {
-    if (key === 'savings') state.savings = value;
+    if (key === 'savings' || key === 'salary') state[key] = value;
     else state[key] = value ?? 0;
   }
 
@@ -203,7 +205,7 @@ export function setupAffordability(
     input.addEventListener('input', () => {
       const empty = !input.value.trim();
       if (empty && !field.min) {
-        setValue(key, key === 'savings' ? null : 0);
+        setValue(key, key === 'savings' || key === 'salary' ? null : 0);
         input.removeAttribute('aria-invalid');
         render();
         return;
@@ -253,8 +255,9 @@ export function setupAffordability(
 
   function reset() {
     state = { ...defaults };
-    salaryMode = 'net';
+    salaryMode = 'gross';
     incomeModes.forEach(input => { input.checked = input.value === salaryMode; });
+    budgetElement<HTMLDetailsElement>('terms').open = false;
     keys.forEach(updateField);
     render();
   }

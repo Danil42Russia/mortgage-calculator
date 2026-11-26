@@ -15,8 +15,8 @@ export function bindMoneyGrouping(input: HTMLInputElement, enabled = () => true)
     }
   });
 
-  input.addEventListener('input', event => {
-    if (!enabled() || (event instanceof InputEvent && event.isComposing)) return;
+  function regroup() {
+    if (!enabled()) return;
     const start = input.selectionStart;
     if (start === null) return;
 
@@ -26,5 +26,10 @@ export function bindMoneyGrouping(input: HTMLInputElement, enabled = () => true)
       input.value = formatted.value;
       input.setSelectionRange(formatted.start, formatted.end, direction);
     }
+  }
+
+  input.addEventListener('input', event => {
+    if (!(event instanceof InputEvent && event.isComposing)) regroup();
   });
+  input.addEventListener('compositionend', regroup);
 }

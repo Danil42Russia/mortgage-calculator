@@ -213,7 +213,6 @@ tbody tr:hover { background: #faf8fe; }
 .input-frame input:disabled, input[type=range]:disabled { opacity: .65; cursor: default; }
 
 .budget-controls { padding-bottom: 5px; }
-.budget-intro { margin-top: 6px; }
 .budget-inputs { display: grid; gap: 11px; margin-top: 18px; }
 .budget-inputs .hint { margin-top: -5px; }
 .budget-income-mode { border: 0; margin: 0; padding: 0; min-width: 0; }
@@ -229,6 +228,7 @@ tbody tr:hover { background: #faf8fe; }
 .budget-reserve-controls .segmented { background: #eee8f7; }
 .budget-reserve-controls button { padding-inline: 9px; }
 .budget-terms { margin-top: 15px; }
+.budget-terms-summary { margin-left: auto; color: var(--quiet); font-weight: 550; white-space: nowrap; }
 .cash-card { padding: 20px 22px 17px; }
 .cash-total { color: var(--accent-dark); font-size: clamp(18px, 2.4vw, 27px); letter-spacing: -.035em; white-space: nowrap; }
 .cash-bar { display: flex; overflow: hidden; gap: 3px; height: 10px; margin-top: 17px; border-radius: 6px; }
