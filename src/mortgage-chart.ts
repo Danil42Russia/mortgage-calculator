@@ -1,6 +1,6 @@
 import { durationAxis, SeriesChart } from './chart.ts';
 import { decimal, firstPaymentYear, formatPaymentMonth, formatTerm } from './format.ts';
-import { halfRepaidMonth, summarizeSchedule } from './mortgage.ts';
+import { cumulativeBankPayments, halfRepaidMonth, summarizeSchedule } from './mortgage.ts';
 import type { MortgageResult } from './mortgage.ts';
 
 interface MortgageChartData {
@@ -9,6 +9,38 @@ interface MortgageChartData {
 }
 
 const rubles = (value: number) => decimal(value) + '\u00a0₽';
+
+export function setupBankPaymentsChart(card: HTMLElement) {
+  const template = document.querySelector<HTMLTemplateElement>('#bank-payments-template')!;
+  card.append(template.content.cloneNode(true));
+  const plot = new SeriesChart(card.querySelector('canvas')!, card.querySelector<HTMLElement>('.chart-tooltip')!,
+    card.querySelector<HTMLElement>('[role=status]')!);
+  const total = card.querySelector<HTMLElement>('[data-total]')!;
+  const principal = card.querySelector<HTMLElement>('[data-principal]')!;
+  const overpayment = card.querySelector<HTMLElement>('[data-interest]')!;
+  const ratio = card.querySelector<HTMLElement>('[data-interest-share]')!;
+
+  return (result: MortgageResult | null) => {
+    card.hidden = !result?.rows.length;
+    if (!result?.rows.length) {
+      plot.setSeries(null);
+      return;
+    }
+    total.textContent = rubles(result.totalPaid);
+    principal.textContent = rubles(result.principal);
+    overpayment.textContent = rubles(result.totalInterest);
+    ratio.textContent = decimal(100 * result.totalInterest / result.principal) + '\u00a0% от суммы кредита';
+    const { paid, interest } = cumulativeBankPayments(result.rows);
+    plot.setSeries({
+      values: paid, label: 'Всего банку',
+      comparison: { values: interest, label: 'Из них проценты' },
+      axisStep: 12,
+      axisLabel: durationAxis,
+      pointLabel: month => month ? formatPaymentMonth(month) : 'При выдаче',
+      formatValue: rubles,
+    });
+  };
+}
 
 export function setupMortgageChart(card: HTMLElement, onModeChange: () => void) {
   const canvas = card.querySelector('canvas')!;

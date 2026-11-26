@@ -199,6 +199,20 @@ export function halfRepaidMonth(result: MortgageResult): number | undefined {
   return result.rows.find(row => row.balance <= result.principal / 2)?.month;
 }
 
+export function cumulativeBankPayments(rows: readonly PaymentRow[]) {
+  const paid = [0];
+  const interest = [0];
+  let paidCents = 0;
+  let interestCents = 0;
+  for (const row of rows) {
+    paidCents += toCents(row.scheduledPayment) + toCents(row.prepayment);
+    interestCents += toCents(row.interest);
+    paid.push(toRubles(paidCents));
+    interest.push(toRubles(interestCents));
+  }
+  return { paid, interest };
+}
+
 export function summarizeSchedule(rows: readonly PaymentRow[], grouping: 'month' | 'year'): SchedulePeriod[] {
   const periods: SchedulePeriod[] = [];
   for (const row of rows) {

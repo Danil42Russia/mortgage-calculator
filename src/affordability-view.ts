@@ -2,7 +2,7 @@ import { calculateAffordability } from './affordability.ts';
 import type { AffordabilityInput } from './affordability.ts';
 import { calculatorHash, readChoiceParam, readNumberParam } from './calculator-uri.ts';
 import { durationAxis, SeriesChart } from './chart.ts';
-import { setupMortgageChart } from './mortgage-chart.ts';
+import { setupBankPaymentsChart, setupMortgageChart } from './mortgage-chart.ts';
 import { decimal, formatPaymentMonth, formatTerm, integer, money, monthWord, numberFromInput, yearWord } from './format.ts';
 import { bindMoneyGrouping, bindPercentFormatting } from './money-input.ts';
 import { calculateReservePayoff } from './mortgage.ts';
@@ -157,6 +157,7 @@ export function setupAffordability(
   const cashBar = budgetElement('cash-bar');
   const status = budgetElement('status');
   const chart = setupMortgageChart(budgetElement('debt-chart-card'), onChange);
+  const updateBankPayments = setupBankPaymentsChart(budgetElement('bank-payments'));
   const salaryChart = new SeriesChart(
     budgetElement<HTMLCanvasElement>('salary-chart'), budgetElement('salary-tooltip'), budgetElement('salary-live'),
   );
@@ -244,6 +245,7 @@ export function setupAffordability(
     showSalaryChart(salaryChart, balances, salaryPeriod, schedule?.rows.length ?? months);
     showSalaryFlow(estimate, balances);
     chart.set(schedule ? { result: schedule, baseline: null } : null);
+    updateBankPayments(schedule);
     budgetElement('chart-empty').hidden = schedule !== null;
     budgetText('chart-empty', monthlyIncome ? 'График появится, когда будет рассчитана сумма кредита.'
       : 'Укажите зарплату, чтобы построить график.');

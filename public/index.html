@@ -185,6 +185,9 @@
           <div class="legend payment-legend" hidden><span><i></i> Основной долг</span><span><i></i> Проценты</span></div>
           <p class="hint debt-chart-note" id="chart-note" hidden></p>
         </section>
+        <section class="card chart-card bank-payments" id="bank-payments" aria-labelledby="bank-payments-title" hidden>
+          <h2 id="bank-payments-title">Сколько отдадим банку</h2>
+        </section>
         <p class="source-note" id="market-note"><span aria-hidden="true">ⓘ</span> 18% — средняя ставка по выданным рыночным ипотекам в сентябре 2026 года. <a href="https://www.cbr.ru/Collection/Collection/File/62505/mortgage_lending_market_2609_77.pdf" target="_blank" rel="noopener">Банк России</a></p>
       </div>
     </div>
@@ -339,6 +342,9 @@
           <div class="legend payment-legend" hidden><span><i></i> Основной долг</span><span><i></i> Проценты</span></div>
           <p class="hint debt-chart-note" id="budget-chart-note" hidden></p>
         </section>
+        <section class="card chart-card bank-payments" id="budget-bank-payments" aria-labelledby="budget-bank-payments-title" hidden>
+          <h2 id="budget-bank-payments-title">Сколько отдадим банку</h2>
+        </section>
         <section class="card cash-card" id="budget-cash" aria-labelledby="budget-cash-title" hidden>
           <div class="section-head">
             <div><h2 id="budget-cash-title">Взнос и подушка</h2><p id="budget-cash-note"></p></div>
@@ -412,5 +418,19 @@
     <div class="sr-only" id="budget-live" role="status"></div>
   </main>
   <footer class="shell footer"><span class="footer-brand">Ключи</span><span>Ипотечный калькулятор · Россия, 2026</span><a id="back-to-top" href="#calculator">Наверх ↑</a></footer>
+  <template id="bank-payments-template">
+    <dl class="bank-totals">
+      <div><dt>Выплаты за весь срок</dt><dd data-total></dd></div>
+      <div><dt>Сумма кредита</dt><dd data-principal></dd></div>
+      <div><dt>Переплата по процентам</dt><dd data-interest></dd><dd class="hint" data-interest-share></dd></div>
+    </dl>
+    <p class="hint">График показывает выплаты с начала ипотеки по выбранный месяц.</p>
+    <div class="chart-wrap">
+      <canvas tabindex="-1" aria-label="Выплаты банку и проценты с начала ипотеки. Стрелки влево и вправо переключают годы, вверх и вниз — месяцы."></canvas>
+      <div class="chart-tooltip" hidden></div>
+      <div class="sr-only" role="status"></div>
+    </div>
+    <div class="legend"><span><i></i> Всего выплачено банку</span><span class="interest-legend"><i></i> Из них проценты</span></div>
+  </template>
 </body>
 </html>

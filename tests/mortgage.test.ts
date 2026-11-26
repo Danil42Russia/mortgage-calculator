@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { calculateMortgage, calculateReservePayoff, halfRepaidMonth, summarizeSchedule } from '../src/mortgage.ts';
+import { calculateMortgage, calculateReservePayoff, cumulativeBankPayments, halfRepaidMonth, summarizeSchedule } from '../src/mortgage.ts';
 import type { MortgageInput } from '../src/mortgage.ts';
 
 const loan: MortgageInput = { principal: 1_200_000, annualRate: 12, months: 12, paymentType: 'annuity' };
@@ -21,6 +21,26 @@ test('zero rate divides an annuity into equal payments', () => {
   const result = calculateMortgage({ ...loan, annualRate: 0 });
   assert.deepEqual(result.rows.map(row => row.scheduledPayment), Array(12).fill(100_000));
   assert.equal(result.totalInterest, 0);
+});
+
+test('cumulative bank payments include extra principal once and keep insurance separate from interest', () => {
+  const result = calculateMortgage({
+    principal: 1_000.01, annualRate: 12, months: 3, paymentType: 'declining', annualInsuranceRate: 1,
+    rateChange: { month: 2, annualRate: 24 },
+    prepayment: { goal: 'term', lump: { month: 1, amount: 100 }, payoffReserve: 400 },
+  });
+  assert.equal(result.totalInsurance, 10);
+  assert.equal(result.rows[1].fromReserve, 283.33);
+  const values = cumulativeBankPayments(result.rows);
+  assert.deepEqual(values, { paid: [0, 443.34, 1_021.34], interest: [0, 10, 21.33] });
+  assert.equal(values.paid.at(-1), result.totalPaid);
+  assert.equal(values.interest.at(-1), result.totalInterest);
+});
+
+test('cumulative interest stays zero on an interest-free loan and both series start at zero', () => {
+  const result = calculateMortgage({ ...loan, principal: 1_000, annualRate: 0, months: 3 });
+  assert.deepEqual(cumulativeBankPayments(result.rows), { paid: [0, 333.33, 666.66, 1_000], interest: [0, 0, 0, 0] });
+  assert.deepEqual(cumulativeBankPayments([]), { paid: [0], interest: [0] });
 });
 
 test('the reserve closes the loan on the first eligible payment, including equality to the kopeck', () => {

@@ -17,6 +17,7 @@ export function durationAxis(month: number, last: boolean) {
 
 interface ChartSeries {
   values: number[];
+  label?: string;
   comparison?: { values: number[]; label: string };
   axisLabel: (index: number, last: boolean) => string;
   pointLabel: (index: number) => string;
@@ -250,7 +251,7 @@ export class SeriesChart {
         document.createElement('br'), data.stack.upperLabel + ' ' + format(value - lower),
         document.createElement('br'), data.stack.totalLabel + ' ' + format(value));
     } else {
-      values.push(format(value));
+      values.push(data.label ? data.label + ' ' + format(value) : format(value));
       if (data.comparison) {
         values.push(document.createElement('br'), data.comparison.label + ' ' + format(data.comparison.values[month] ?? 0));
       }

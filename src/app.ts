@@ -1,4 +1,4 @@
-import { setupMortgageChart } from './mortgage-chart.ts';
+import { setupBankPaymentsChart, setupMortgageChart } from './mortgage-chart.ts';
 import { setupAffordability } from './affordability-view.ts';
 import type { BudgetScenario } from './affordability-view.ts';
 import { calculatorHash, parseCalculatorHash, readChoiceParam, readNumberParam } from './calculator-uri.ts';
@@ -17,6 +17,7 @@ function element<T extends HTMLElement = HTMLElement>(id: string): T {
 
 const programs = document.querySelectorAll<HTMLInputElement>('input[name=program]');
 const chart = setupMortgageChart(element('debt-chart-card'), queueAddressUpdate);
+const updateBankPayments = setupBankPaymentsChart(element('bank-payments'));
 const updateSchedule = setupSchedule();
 const save = element<HTMLButtonElement>('save');
 const live = element('live');
@@ -231,6 +232,7 @@ function showResult() {
   notes.hidden = Array.from(notes.children).every(node => (node as HTMLElement).hidden);
 
   chart.set(data && hasLoan ? { result: data.result, baseline: data.baseline } : null);
+  updateBankPayments(result ?? null);
   message('chart-empty', hasLoan ? '' : current.kind === 'over-limit'
     ? 'График появится после уменьшения суммы кредита.'
     : 'При покупке без кредита платежей нет.');
