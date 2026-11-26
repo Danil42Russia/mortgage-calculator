@@ -1,6 +1,6 @@
 import { durationAxis, SeriesChart } from './chart.ts';
 import { decimal, firstPaymentYear, formatPaymentMonth, formatTerm } from './format.ts';
-import { bankPaymentRatios, cumulativeBankPayments, halfRepaidMonth, summarizeSchedule } from './mortgage.ts';
+import { bankPaymentRatios, cumulativeBankPayments, firstMonthInterestReachesPrincipal, halfRepaidMonth, summarizeSchedule } from './mortgage.ts';
 import type { MortgageResult } from './mortgage.ts';
 
 interface MortgageChartData {
@@ -20,6 +20,7 @@ export function setupBankPaymentsChart(card: HTMLElement) {
   const principal = card.querySelector<HTMLElement>('[data-principal]')!;
   const overpayment = card.querySelector<HTMLElement>('[data-interest]')!;
   const interestShare = card.querySelector<HTMLElement>('[data-interest-share]')!;
+  const thresholdNote = card.querySelector<HTMLElement>('[data-interest-threshold]')!;
   const comparison = card.querySelector<HTMLElement>('[data-prepayment-comparison]')!;
   const interestSaved = comparison.querySelector<HTMLElement>('[data-interest-saved]')!;
   const timeSaved = comparison.querySelector<HTMLElement>('[data-time-saved]')!;
@@ -44,9 +45,21 @@ export function setupBankPaymentsChart(card: HTMLElement) {
       multiples.textContent = decimal(baseline.totalInterest / baseline.principal) + '× → ' + decimal(ratios.interest) + '×';
     }
     const { paid, interest } = cumulativeBankPayments(result.rows);
+    const month = firstMonthInterestReachesPrincipal(interest, result.principal);
+    let marker;
+    if (month !== undefined) {
+      const date = formatPaymentMonth(month);
+      marker = { index: month, value: interest[month], label: '1× · ' + date };
+      thresholdNote.textContent = 'Отметка 1× — ' + date + ' (платёж №' + month + ').'
+        + ' К этому моменту вы выплатите ' + rubles(interest[month]) + ' процентов по кредиту на ' + rubles(result.principal) + '.';
+    } else {
+      thresholdNote.textContent = 'Ипотека закроется до отметки 1×. Проценты за весь срок составят '
+        + rubles(result.totalInterest) + ' — меньше суммы кредита.';
+    }
     plot.setSeries({
       values: paid, label: 'Всего банку',
       comparison: { values: interest, label: 'Из них проценты' },
+      marker,
       axisStep: 12,
       axisLabel: durationAxis,
       pointLabel: month => month ? formatPaymentMonth(month) : 'При выдаче',

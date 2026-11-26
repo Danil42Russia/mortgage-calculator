@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bankPaymentRatios, calculateMortgage, calculateReservePayoff, cumulativeBankPayments, halfRepaidMonth, summarizeSchedule } from '../src/mortgage.ts';
+import { bankPaymentRatios, calculateMortgage, calculateReservePayoff, cumulativeBankPayments, firstMonthInterestReachesPrincipal, halfRepaidMonth, summarizeSchedule } from '../src/mortgage.ts';
 import type { MortgageInput } from '../src/mortgage.ts';
 
 const loan: MortgageInput = { principal: 1_200_000, annualRate: 12, months: 12, paymentType: 'annuity' };
@@ -50,6 +50,31 @@ test('cumulative interest stays zero on an interest-free loan and both series st
   const result = calculateMortgage({ ...loan, principal: 1_000, annualRate: 0, months: 3 });
   assert.deepEqual(cumulativeBankPayments(result.rows), { paid: [0, 333.33, 666.66, 1_000], interest: [0, 0, 0, 0] });
   assert.deepEqual(cumulativeBankPayments([]), { paid: [0], interest: [0] });
+});
+
+test('the interest milestone uses the first payment reaching the original principal to the kopeck', () => {
+  const interest = [0, 499.99, 999.99, 1000, 1000, 1000.02];
+  assert.equal(firstMonthInterestReachesPrincipal(interest, 1000), 3);
+  assert.equal(firstMonthInterestReachesPrincipal(interest, 1000.01), 5);
+  assert.equal(firstMonthInterestReachesPrincipal(interest, 1000.03), undefined);
+  assert.equal(firstMonthInterestReachesPrincipal([0, 0, 0], 1000), undefined);
+  assert.equal(firstMonthInterestReachesPrincipal([0], 0), undefined);
+});
+
+test('monthly prepayments and a reserve payoff can prevent interest reaching the principal', () => {
+  const input = { ...loan, principal: 1_000_000, annualRate: 18, months: 240 };
+  const milestone = (result: ReturnType<typeof calculateMortgage>) =>
+    firstMonthInterestReachesPrincipal(cumulativeBankPayments(result.rows).interest, result.principal);
+  const standard = calculateMortgage(input);
+  const month = milestone(standard);
+  assert.ok(month !== undefined);
+  const interest = cumulativeBankPayments(standard.rows).interest;
+  assert.ok(interest[month - 1] < standard.principal && interest[month] > standard.principal);
+  for (const prepayment of [{ monthly: { startMonth: 1, amount: 20_000 } }, { payoffReserve: 950_000 }]) {
+    const early = calculateMortgage({ ...input, prepayment: { ...prepayment, goal: 'term' } });
+    assert.ok(early.totalPaid >= early.principal && early.totalInterest < early.principal);
+    assert.equal(milestone(early), undefined);
+  }
 });
 
 test('the reserve closes the loan on the first eligible payment, including equality to the kopeck', () => {

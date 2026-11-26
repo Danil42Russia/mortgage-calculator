@@ -207,6 +207,13 @@ export function bankPaymentRatios({ principal, totalPaid, totalInterest }: Mortg
   return { total: totalPaid / principal, interest: totalInterest / principal };
 }
 
+/** Index 0 is the date of issue in the cumulative interest series. */
+export function firstMonthInterestReachesPrincipal(cumulativeInterest: readonly number[], principal: number): number | undefined {
+  if (principal <= 0) return undefined;
+  const month = cumulativeInterest.findIndex(interest => interest >= principal);
+  return month < 0 ? undefined : month;
+}
+
 export function cumulativeBankPayments(rows: readonly PaymentRow[]) {
   const paid = [0];
   const interest = [0];

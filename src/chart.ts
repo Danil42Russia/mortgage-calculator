@@ -25,7 +25,7 @@ interface ChartSeries {
   valueAxisLabel?: string;
   formatValue?: (value: number) => string;
   fitValues?: boolean;
-  marker?: { index: number; label: string };
+  marker?: { index: number; label: string; value?: number };
   stack?: { lower: number[]; lowerLabel: string; upperLabel: string; totalLabel: string };
 }
 
@@ -206,7 +206,7 @@ export class SeriesChart {
 
     if (data.marker) {
       const px = x(data.marker.index);
-      const py = y(data.values[data.marker.index]);
+      const py = y(data.marker.value ?? data.values[data.marker.index]);
       context.beginPath();
       context.arc(px, py, 4.5, 0, 2 * Math.PI);
       context.fillStyle = '#fff';

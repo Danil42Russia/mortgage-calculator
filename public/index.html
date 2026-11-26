@@ -263,11 +263,12 @@
     </section>
     <p class="hint">График показывает выплаты с начала ипотеки по выбранный месяц.</p>
     <div class="chart-wrap">
-      <canvas tabindex="-1" aria-label="Выплаты банку и проценты с начала ипотеки. Стрелки влево и вправо переключают годы, вверх и вниз — месяцы."></canvas>
+      <canvas tabindex="-1" aria-label="Выплаты банку и проценты с начала ипотеки. Стрелки влево и вправо переключают годы, вверх и вниз — месяцы." aria-describedby="budget-interest-threshold"></canvas>
       <div class="chart-tooltip" hidden></div>
       <div class="sr-only" role="status"></div>
     </div>
     <div class="legend"><span><i></i> Всего выплачено банку</span><span class="interest-legend"><i></i> Из них проценты</span></div>
+    <p class="hint debt-chart-note" id="budget-interest-threshold" data-interest-threshold></p>
   </template>
 </body>
 </html>
