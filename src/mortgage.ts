@@ -202,9 +202,23 @@ export function halfRepaidMonth(result: MortgageResult): number | undefined {
   return result.rows.find(row => row.balance <= result.principal / 2)?.month;
 }
 
-export function bankPaymentRatios({ principal, totalPaid, totalInterest }: MortgageResult) {
+function overpaymentZone(principal: number, totalInterest: number): 'green' | 'yellow' | 'red' {
+  const loan = toCents(principal);
+  const interest = toCents(totalInterest);
+  if (interest <= 1.5 * loan) return 'green';
+  if (interest <= 2 * loan) return 'yellow';
+  return 'red';
+}
+
+export function bankPaymentRatios({
+  principal, totalPaid, totalInterest,
+}: Pick<MortgageResult, 'principal' | 'totalPaid' | 'totalInterest'>) {
   if (principal === 0) return null;
-  return { total: totalPaid / principal, interest: totalInterest / principal };
+  return {
+    total: totalPaid / principal,
+    interest: totalInterest / principal,
+    zone: overpaymentZone(principal, totalInterest),
+  };
 }
 
 /** Index 0 is the date of issue in the cumulative interest series. */

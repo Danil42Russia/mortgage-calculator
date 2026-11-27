@@ -147,6 +147,10 @@ details summary:hover { color: var(--accent-dark); }
 .bank-totals dd { margin: 3px 0 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .bank-totals dd:first-of-type { font-size: 18px; font-weight: 700; }
 .bank-totals [data-total] { color: var(--accent-dark); }
+.overpayment-zone { margin: 0 0 14px; }
+.overpayment-zone[data-zone="green"] { background: #edf7ef; color: #225b38; border-color: #c0ddc9; }
+.overpayment-zone[data-zone="yellow"] { background: #fff5cd; color: #6a4906; border-color: #ead693; }
+.overpayment-zone[data-zone="red"] { background: #fcece9; color: #8c3027; border-color: #edc6c0; }
 .prepayment-comparison { padding-top: 12px; border-top: 1px solid var(--line); }
 .prepayment-comparison h3 { font-size: 15px; }
 @container (max-width: 520px) {

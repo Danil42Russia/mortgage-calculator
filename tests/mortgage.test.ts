@@ -31,7 +31,7 @@ test('cumulative bank payments include extra principal once and keep insurance s
   });
   assert.equal(result.totalInsurance, 10);
   assert.equal(result.rows[1].fromReserve, 283.33);
-  assert.deepEqual(bankPaymentRatios(result), { total: 1021.34 / 1000.01, interest: 21.33 / 1000.01 });
+  assert.deepEqual(bankPaymentRatios(result), { total: 1021.34 / 1000.01, interest: 21.33 / 1000.01, zone: 'green' });
   const values = cumulativeBankPayments(result.rows);
   assert.deepEqual(values, { paid: [0, 443.34, 1_021.34], interest: [0, 10, 21.33] });
   assert.equal(values.paid.at(-1), result.totalPaid);
@@ -40,10 +40,21 @@ test('cumulative bank payments include extra principal once and keep insurance s
 
 test('repayment and overpayment multiples are measured against the original principal', () => {
   const result = calculateMortgage({ ...loan, principal: 1000, annualRate: 0 });
-  assert.deepEqual(bankPaymentRatios(result), { total: 1, interest: 0 });
+  assert.deepEqual(bankPaymentRatios(result), { total: 1, interest: 0, zone: 'green' });
   assert.equal(bankPaymentRatios(calculateMortgage({ ...loan, principal: 0 })), null);
   const withInterest = calculateMortgage({ ...loan, paymentType: 'declining', annualRate: 48, months: 60 });
-  assert.deepEqual(bankPaymentRatios(withInterest), { total: 2.22, interest: 1.22 });
+  assert.deepEqual(bankPaymentRatios(withInterest), { total: 2.22, interest: 1.22, zone: 'green' });
+});
+
+test('overpayment zones use exact interest in kopecks and include both upper boundaries', () => {
+  const principal = 100.06;
+  const cases = [
+    [150.08, 'green'], [150.09, 'green'], [150.10, 'yellow'],
+    [200.11, 'yellow'], [200.12, 'yellow'], [200.13, 'red'],
+  ] as const;
+  for (const [totalInterest, zone] of cases) {
+    assert.equal(bankPaymentRatios({ principal, totalInterest, totalPaid: principal + totalInterest })?.zone, zone);
+  }
 });
 
 test('cumulative interest stays zero on an interest-free loan and both series start at zero', () => {

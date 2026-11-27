@@ -12,16 +12,23 @@ interface MortgageChartData {
 
 const rubles = (value: number) => decimal(value) + '\u00a0₽';
 
+const overpaymentMessages = {
+  green: 'Зелёная зона. На каждый рубль кредита вы заплатите до 1,50 ₽ процентов включительно.',
+  yellow: 'Жёлтая зона. На каждый рубль кредита вы заплатите больше 1,50 ₽, но не больше 2 ₽ процентов.',
+  red: 'Красная зона. На каждый рубль кредита вы заплатите больше 2 ₽ процентов.',
+};
+
 export function setupBankPaymentsChart(card: HTMLElement) {
   const template = document.querySelector<HTMLTemplateElement>('#bank-payments-template')!;
   card.append(template.content.cloneNode(true));
   const plot = new SeriesChart(card.querySelector('canvas')!, card.querySelector<HTMLElement>('.chart-tooltip')!,
-    card.querySelector<HTMLElement>('[role=status]')!);
+    card.querySelector<HTMLElement>('.chart-wrap [role=status]')!);
   const total = card.querySelector<HTMLElement>('[data-total]')!;
   const totalMultiple = card.querySelector<HTMLElement>('[data-total-multiple]')!;
   const principal = card.querySelector<HTMLElement>('[data-principal]')!;
   const overpayment = card.querySelector<HTMLElement>('[data-interest]')!;
   const interestShare = card.querySelector<HTMLElement>('[data-interest-share]')!;
+  const zoneBanner = card.querySelector<HTMLElement>('.overpayment-zone')!;
   const thresholdNote = card.querySelector<HTMLElement>('[data-interest-threshold]')!;
   const comparison = card.querySelector<HTMLElement>('[data-prepayment-comparison]')!;
   const interestSaved = comparison.querySelector<HTMLElement>('[data-interest-saved]')!;
@@ -40,6 +47,10 @@ export function setupBankPaymentsChart(card: HTMLElement) {
     principal.textContent = rubles(result.principal);
     overpayment.textContent = rubles(result.totalInterest);
     interestShare.textContent = decimal(100 * ratios.interest) + '\u00a0% от суммы кредита (' + decimal(ratios.interest) + '×)';
+    if (zoneBanner.dataset.zone !== ratios.zone) {
+      zoneBanner.dataset.zone = ratios.zone;
+      zoneBanner.textContent = overpaymentMessages[ratios.zone];
+    }
     comparison.hidden = !baseline;
     if (baseline) {
       interestSaved.textContent = rubles(baseline.totalInterest - result.totalInterest);
