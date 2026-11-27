@@ -228,10 +228,11 @@ export function cumulativeBankPayments(rows: readonly PaymentRow[]) {
   return { paid, interest };
 }
 
-export function summarizeSchedule(rows: readonly PaymentRow[], grouping: 'month' | 'year'): SchedulePeriod[] {
+export function summarizeSchedule(rows: readonly PaymentRow[], grouping: 'month' | 'year', firstMonth = 1): SchedulePeriod[] {
+  if (!Number.isInteger(firstMonth) || firstMonth < 1 || firstMonth > 12) throw new RangeError('Invalid first payment month');
   const periods: SchedulePeriod[] = [];
   for (const row of rows) {
-    const period = grouping === 'month' ? row.month : Math.ceil(row.month / 12);
+    const period = grouping === 'month' ? row.month : Math.ceil((row.month + firstMonth - 1) / 12);
     const index = period - 1;
     const summary = periods[index] ?? {
       period, payment: 0, principal: 0, interest: 0, prepayment: 0, insurance: 0, balance: 0,

@@ -41,10 +41,11 @@ export interface SalaryEstimate {
 }
 
 /** Estimate ordinary resident wages in Russia with equal monthly accruals and no deductions. */
-export function estimateSalary2026(monthlyGross: number): SalaryEstimate {
+export function estimateSalary2026(monthlyGross: number, firstMonth = 1): SalaryEstimate {
   if (!Number.isInteger(monthlyGross) || monthlyGross < 0 || monthlyGross > 1_000_000_000) {
     throw new RangeError('Monthly gross salary must be a whole amount between 0 and 1,000,000,000 rubles');
   }
+  if (!Number.isInteger(firstMonth) || firstMonth < 1 || firstMonth > 12) throw new RangeError('Invalid first salary month');
 
   let cumulativeTaxKopecks = 0;
   let withheld = 0;
@@ -59,7 +60,9 @@ export function estimateSalary2026(monthlyGross: number): SalaryEstimate {
   }
   const annualGross = monthlyGross * 12;
   const annualNet = annualGross - withheld;
-  return { months, annualGross, annualTax: withheld, annualNet, averageNet: annualNet / 12 };
+  // Withholding follows January–December even when the mortgage starts midyear.
+  const projectionMonths = months.slice(firstMonth - 1).concat(months.slice(0, firstMonth - 1));
+  return { months: projectionMonths, annualGross, annualTax: withheld, annualNet, averageNet: annualNet / 12 };
 }
 
 export interface SalaryBalance {

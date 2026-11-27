@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { budgetParamsFromHash, calculatorHash, parseCalculatorHash, readChoiceParam, readNumberParam } from '../src/calculator-uri.ts';
+import { budgetParamsFromHash, calculatorHash, parseCalculatorHash, readChoiceParam, readNumberParam, restoreStartMonth } from '../src/calculator-uri.ts';
 import { DEFAULT_SCENARIO } from '../src/scenario.ts';
 
 test('a forward calculation preserves its route and edited options', () => {
@@ -58,4 +58,14 @@ test('shared numbers follow the same bounds and precision as the form', () => {
     assert.equal(readNumberParam(params, key, 1, 40), undefined);
   }
   assert.equal(readChoiceParam(new URLSearchParams('program=invalid'), 'program', ['market', 'custom']), undefined);
+});
+
+test('fresh budgets start this month while shared budgets retain their original calendar', () => {
+  const today = new Date(2027, 1, 1);
+  assert.equal(restoreStartMonth(new URLSearchParams(), today), '2027-02');
+  assert.equal(restoreStartMonth(new URLSearchParams('salary=350000'), today), '2026-01');
+  assert.equal(restoreStartMonth(new URLSearchParams('startMonth=2028-12'), today), '2028-12');
+  for (const invalid of ['2028-13', '2028-00', '2026-6', '2026-12-01', '']) {
+    assert.equal(restoreStartMonth(new URLSearchParams({ startMonth: invalid }), today), '2026-01');
+  }
 });

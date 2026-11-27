@@ -105,6 +105,7 @@
               <label class="mini-field" for="budget-years">Срок, лет<input id="budget-years" type="text" inputmode="numeric"></label>
               <label class="mini-field" for="budget-down-percent">Минимальный взнос банка, %<input id="budget-down-percent" type="text" inputmode="decimal"></label>
               <label class="mini-field" for="budget-purchase-costs">Расходы на сделку отдельно, ₽<input id="budget-purchase-costs" type="text" inputmode="numeric"></label>
+              <label class="mini-field field-span" for="budget-start-month">Месяц первого платежа<input id="budget-start-month" type="month" min="1000-01" max="9999-12" placeholder="ГГГГ-ММ" required></label>
             </div>
             <p class="hint">Подставьте ставку, срок и минимальный взнос из предложения банка, если оно уже есть.</p>
           </div>
@@ -129,7 +130,7 @@
           <div class="chart-head">
             <div>
               <h2 id="budget-chart-title">Как уменьшается долг</h2>
-              <p class="debt-chart-caption">Первый платёж в расчёте — январь 2026 года.</p>
+              <p class="debt-chart-caption"></p>
             </div>
           </div>
           <fieldset class="debt-chart-mode segmented" aria-label="Вид ипотечного графика">
@@ -171,14 +172,14 @@
       <div class="section-head">
         <div>
           <h2 id="budget-salary-title" tabindex="-1">Как распределяется зарплата</h2>
-          <p>Расчёт с января 2026 года при постоянной зарплате, без расходов на жизнь, инфляции и процентов на накопления.</p>
+          <p>Прогноз с месяца первого платежа при постоянной зарплате, без расходов на жизнь, инфляции и процентов на накопления.</p>
         </div>
         <div class="salary-average"><strong id="budget-salary-average"></strong><span>В среднем на руки в месяц</span></div>
       </div>
       <fieldset class="salary-period">
         <legend class="sr-only">Период графика зарплаты</legend>
         <div class="segmented">
-          <label><input type="radio" name="salary-period" value="year" checked><span>За 2026 год</span></label>
+          <label><input type="radio" name="salary-period" value="year" checked><span>Первые 12 месяцев</span></label>
           <label><input type="radio" name="salary-period" value="term"><span>За срок ипотеки</span></label>
         </div>
       </fieldset>
@@ -204,7 +205,7 @@
             <tfoot id="budget-salary-total"></tfoot>
           </table>
         </div>
-        <p class="hint salary-note">Каждый год прогноза использует шкалу НДФЛ 2026 года для обычной зарплаты налогового резидента РФ без вычетов. <a href="https://www.nalog.gov.ru/rn64/news/activities_fts/16639359/" target="_blank" rel="noopener">Шкала НДФЛ ФНС</a></p>
+        <p class="hint salary-note">Расчёт предполагает одинаковую зарплату с января, включая месяцы до ипотеки. Для всех лет прогноза применяется шкала НДФЛ 2026 года для зарплаты налогового резидента РФ без вычетов. <a href="https://www.nalog.gov.ru/rn64/news/activities_fts/16639359/" target="_blank" rel="noopener">Шкала НДФЛ ФНС</a></p>
       </div>
     </section>
     <section class="card below-card" id="budget-schedule" aria-labelledby="schedule-title" hidden>

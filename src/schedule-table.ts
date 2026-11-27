@@ -1,4 +1,5 @@
-import { integer } from './format.ts';
+import { formatPaymentMonth, integer } from './format.ts';
+import type { PaymentStart } from './format.ts';
 import { summarizeSchedule } from './mortgage.ts';
 import type { PaymentRow, SchedulePeriod } from './mortgage.ts';
 
@@ -9,10 +10,16 @@ function amounts(row: SchedulePeriod) {
   return [row.payment, row.principal, row.interest, row.prepayment, row.insurance, row.balance];
 }
 
-export function scheduleCsv(rows: readonly PaymentRow[], grouping: 'month' | 'year') {
-  const header = [grouping === 'year' ? 'Год' : 'Месяц', ...headings].join(';');
-  const data = summarizeSchedule(rows, grouping).map(row => (
-    [row.period, ...amounts(row).map(value => value.toFixed(2).replace('.', ','))].join(';')
+function periodColumns(period: number, grouping: 'month' | 'year', start?: PaymentStart) {
+  if (!start) return [period];
+  return grouping === 'year' ? [start.year + period - 1] : [period, formatPaymentMonth(period, start)];
+}
+
+export function scheduleCsv(rows: readonly PaymentRow[], grouping: 'month' | 'year', start?: PaymentStart) {
+  const labels = grouping === 'year' ? ['Год'] : start ? ['№ платежа', 'Месяц'] : ['Месяц'];
+  const header = [...labels, ...headings].join(';');
+  const data = summarizeSchedule(rows, grouping, start?.month).map(row => (
+    [...periodColumns(row.period, grouping, start), ...amounts(row).map(value => value.toFixed(2).replace('.', ','))].join(';')
   ));
   return '\uFEFF' + [header, ...data].join('\r\n') + '\r\n';
 }
@@ -32,9 +39,10 @@ export function setupSchedule() {
   let grouping: 'month' | 'year' = 'year';
   let page = 0;
   let rows: readonly PaymentRow[] = [];
+  let firstPayment: PaymentStart | undefined;
 
   function render() {
-    const joined = summarizeSchedule(rows, grouping);
+    const joined = summarizeSchedule(rows, grouping, firstPayment?.month);
     const pageCount = Math.ceil(joined.length / pageSize);
     page = Math.max(0, Math.min(page, pageCount - 1));
     const start = page * pageSize;
@@ -44,7 +52,7 @@ export function setupSchedule() {
     if (visible.length) {
       for (const row of visible) {
         const tr = rowsElement.insertRow();
-        tr.insertCell().textContent = String(row.period);
+        tr.insertCell().textContent = periodColumns(row.period, grouping, firstPayment).join(' · ');
         for (const value of amounts(row)) tr.insertCell().textContent = integer(value);
       }
     } else {
@@ -57,7 +65,7 @@ export function setupSchedule() {
     byYear.setAttribute('aria-pressed', String(grouping === 'year'));
     byMonth.setAttribute('aria-pressed', String(grouping === 'month'));
     heading.textContent = grouping === 'year' ? 'Год' : 'Месяц';
-    caption.textContent = 'Основной долг и проценты за каждый ' + (grouping === 'year' ? 'год' : 'месяц') + ' кредита.';
+    caption.textContent = 'Основной долг и проценты за каждый ' + (grouping === 'year' ? 'календарный год.' : 'месяц кредита.');
     pagination.hidden = pageCount <= 1;
     previous.disabled = page <= 0;
     next.disabled = page + 1 >= pageCount;
@@ -71,7 +79,7 @@ export function setupSchedule() {
   next.addEventListener('click', () => { page += 1; render(); });
   download.addEventListener('click', () => {
     if (!rows.length) return;
-    const url = URL.createObjectURL(new Blob([scheduleCsv(rows, grouping)], { type: 'text/csv;charset=utf-8' }));
+    const url = URL.createObjectURL(new Blob([scheduleCsv(rows, grouping, firstPayment)], { type: 'text/csv;charset=utf-8' }));
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = 'ipoteka-' + (grouping === 'year' ? 'po-godam' : 'po-mesyatsam') + '.csv';
@@ -79,8 +87,9 @@ export function setupSchedule() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
 
-  return (resultRows: readonly PaymentRow[]) => {
+  return (resultRows: readonly PaymentRow[], start: PaymentStart) => {
     rows = resultRows;
+    firstPayment = start;
     render();
   };
 }

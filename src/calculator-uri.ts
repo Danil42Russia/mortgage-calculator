@@ -1,4 +1,4 @@
-import { numberFromInput } from './format.ts';
+import { legacyStartMonth, numberFromInput, parseStartMonth } from './format.ts';
 
 export type CalculatorRoute = 'calculator' | 'affordability' | 'schedule';
 
@@ -12,6 +12,13 @@ export function parseCalculatorHash(hash: string) {
 export function budgetParamsFromHash(hash: string) {
   const { route, params } = parseCalculatorHash(hash);
   return route === 'affordability' ? params : new URLSearchParams();
+}
+
+export function restoreStartMonth(params: URLSearchParams, today = new Date()): string {
+  const value = params.get('startMonth');
+  if (value && parseStartMonth(value)) return value;
+  if (params.size) return legacyStartMonth;
+  return today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
 }
 
 export function calculatorHash<T extends object>(route: CalculatorRoute, state: T, defaults: Readonly<T>) {

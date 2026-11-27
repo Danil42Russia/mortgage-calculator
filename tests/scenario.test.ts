@@ -95,3 +95,18 @@ test('CSV includes every period, a UTF-8 marker and decimal commas', () => {
   assert.match(lines.at(-1) ?? '', /^24;.*;0,00$/u);
   assert.equal(scheduleCsv(result.result.rows, 'year').trimEnd().split('\r\n').length, 3);
 });
+
+test('a December start dates each payment and splits the CSV at calendar year boundaries', () => {
+  const result = evaluateScenario({ ...DEFAULT_SCENARIO, program: 'custom', rate: 0, years: 1 });
+  assert.equal(result.kind, 'calculated');
+  const start = { year: 2027, month: 12 };
+  assert.match(formatPaymentMonth(3, start), /февраль 2028/);
+  const months = scheduleCsv(result.result.rows, 'month', start).trimEnd().split('\r\n');
+  assert.match(months[1], /^1;декабрь 2027/u);
+  assert.match(months[2], /^2;январь 2028/u);
+  assert.match(months[12], /^12;ноябрь 2028/u);
+  const years = scheduleCsv(result.result.rows, 'year', start).trimEnd().split('\r\n');
+  assert.equal(years.length, 3);
+  assert.equal(years[1], ['2027', ...months[1].split(';').slice(2)].join(';'));
+  assert.match(years[2], /^2028;.*;0,00$/u);
+});

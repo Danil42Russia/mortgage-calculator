@@ -57,10 +57,18 @@ export const yearWord = (value: number) => plural(value, ['год', 'года', 
 export const monthWord = (value: number) => plural(value, ['месяц', 'месяца', 'месяцев']);
 
 export const firstPaymentYear = 2026;
+export const legacyStartMonth = firstPaymentYear + '-01';
+export interface PaymentStart { year: number; month: number }
+
+export function parseStartMonth(value: string | null): PaymentStart | undefined {
+  if (!value || !/^[1-9]\d{3}-(0[1-9]|1[0-2])$/u.test(value)) return undefined;
+  return { year: Number(value.slice(0, 4)), month: Number(value.slice(5)) };
+}
+
 const paymentCalendar = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
-export function formatPaymentMonth(month: number) {
-  return paymentCalendar.format(Date.UTC(firstPaymentYear, month - 1, 1));
+export function formatPaymentMonth(month: number, start: PaymentStart = { year: firstPaymentYear, month: 1 }) {
+  return paymentCalendar.format(Date.UTC(start.year, start.month + month - 2, 1));
 }
 
 export function formatTerm(months: number, monthStyle: 'short' | 'long' = 'short') {

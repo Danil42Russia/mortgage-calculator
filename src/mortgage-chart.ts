@@ -1,11 +1,13 @@
 import { durationAxis, SeriesChart } from './chart.ts';
-import { decimal, firstPaymentYear, formatPaymentMonth, formatTerm } from './format.ts';
+import { decimal, formatPaymentMonth, formatTerm } from './format.ts';
+import type { PaymentStart } from './format.ts';
 import { bankPaymentRatios, cumulativeBankPayments, firstMonthInterestReachesPrincipal, halfRepaidMonth, summarizeSchedule } from './mortgage.ts';
 import type { MortgageResult } from './mortgage.ts';
 
 interface MortgageChartData {
   result: MortgageResult;
   baseline: MortgageResult | null;
+  start: PaymentStart;
 }
 
 const rubles = (value: number) => decimal(value) + '\u00a0₽';
@@ -26,7 +28,7 @@ export function setupBankPaymentsChart(card: HTMLElement) {
   const timeSaved = comparison.querySelector<HTMLElement>('[data-time-saved]')!;
   const multiples = comparison.querySelector<HTMLElement>('[data-interest-multiples]')!;
 
-  return (result: MortgageResult | null, baseline: MortgageResult | null) => {
+  return (result: MortgageResult | null, baseline: MortgageResult | null, start: PaymentStart) => {
     const ratios = result && bankPaymentRatios(result);
     card.hidden = !ratios;
     if (!result || !ratios) {
@@ -48,7 +50,7 @@ export function setupBankPaymentsChart(card: HTMLElement) {
     const month = firstMonthInterestReachesPrincipal(interest, result.principal);
     let marker;
     if (month !== undefined) {
-      const date = formatPaymentMonth(month);
+      const date = formatPaymentMonth(month, start);
       marker = { index: month, value: interest[month], label: '1× · ' + date };
       thresholdNote.textContent = 'Отметка 1× — ' + date + ' (платёж №' + month + ').'
         + ' К этому моменту вы выплатите ' + rubles(interest[month]) + ' процентов по кредиту на ' + rubles(result.principal) + '.';
@@ -62,7 +64,7 @@ export function setupBankPaymentsChart(card: HTMLElement) {
       marker,
       axisStep: 12,
       axisLabel: durationAxis,
-      pointLabel: month => month ? formatPaymentMonth(month) : 'При выдаче',
+      pointLabel: month => month ? formatPaymentMonth(month, start) : 'При выдаче',
       formatValue: rubles,
     });
   };
@@ -94,9 +96,9 @@ export function setupMortgageChart(card: HTMLElement, onModeChange: () => void) 
       return;
     }
 
-    const { result, baseline } = data;
+    const { result, baseline, start } = data;
     if (payments) {
-      const years = summarizeSchedule(result.rows, 'year');
+      const years = summarizeSchedule(result.rows, 'year', start.month);
       const annualPayments = years.map(year => year.payment);
       caption.textContent = 'Максимум выплат за один год — ' + rubles(Math.max(...annualPayments))
         + '. Выплаты за весь срок — ' + rubles(result.totalPaid) + '.'
@@ -104,24 +106,24 @@ export function setupMortgageChart(card: HTMLElement, onModeChange: () => void) 
       canvas.setAttribute('aria-label', 'Основной долг и проценты за год. Используйте стрелки для выбора года.');
       const crossover = years.find(year => year.principal > year.interest);
       note.textContent = crossover
-        ? 'В ' + (firstPaymentYear + crossover.period - 1) + ' году на погашение долга впервые уйдёт больше, чем на проценты.'
+        ? 'В ' + (start.year + crossover.period - 1) + ' году на погашение долга впервые уйдёт больше, чем на проценты.'
         : 'В каждом году выплаты процентов не меньше суммы погашения основного долга.';
       plot.setSeries({
         values: annualPayments,
         valueAxisLabel: '₽ за год',
         stack: { lower: years.map(year => year.principal), lowerLabel: 'Основной долг', upperLabel: 'Проценты', totalLabel: 'Итого за год' },
         axisStep: 1,
-        axisLabel: index => String(firstPaymentYear + index),
-        pointLabel: index => firstPaymentYear + index + ' год',
+        axisLabel: index => String(start.year + index),
+        pointLabel: index => start.year + index + ' год',
         formatValue: rubles,
       });
     } else {
-      caption.textContent = 'Первый платёж в расчёте — январь 2026 года.';
+      caption.textContent = 'Первый платёж — ' + formatPaymentMonth(1, start) + ' · Последний — ' + formatPaymentMonth(result.rows.length, start);
       canvas.setAttribute('aria-label', 'Остаток долга. Используйте стрелки для просмотра значений.');
       const half = halfRepaidMonth(result);
       let marker;
       if (half !== undefined) {
-        const date = formatPaymentMonth(half);
+        const date = formatPaymentMonth(half, start);
         marker = { index: half, label: '50 % · ' + date };
         note.textContent = 'Погашена половина кредита — ' + date + ' (через ' + formatTerm(half) + ').';
       }
@@ -132,7 +134,7 @@ export function setupMortgageChart(card: HTMLElement, onModeChange: () => void) 
         marker,
         axisStep: 12,
         axisLabel: durationAxis,
-        pointLabel: month => month ? 'Через ' + formatTerm(month) : 'При выдаче',
+        pointLabel: month => month ? formatPaymentMonth(month, start) + ' · через ' + formatTerm(month) : 'При выдаче',
       });
     }
   }

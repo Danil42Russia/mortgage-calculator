@@ -77,6 +77,18 @@ test('the projection repeats the tax year and keeps months with a shortfall', ()
   assert.equal(projection[23].accumulated, income.annualNet * 2 - loan.totalPaid);
 });
 
+test('a December start uses the accrued December tax and resets withholding in January', () => {
+  const regular = estimateSalary2026(350_000);
+  const december = estimateSalary2026(350_000, 12);
+  assert.deepEqual(december.months, [regular.months[11], ...regular.months.slice(0, 11)]);
+  assert.equal(december.averageNet, regular.averageNet);
+  const projection = projectSalary(december, 24, []);
+  assert.equal(projection[0].remaining, 297_500);
+  assert.equal(projection[1].remaining, 304_500);
+  assert.equal(projection[11].accumulated, regular.annualNet);
+  assert.equal(projection[12].remaining, 297_500);
+});
+
 test('net salary skips withholding and the projection deducts the actual final instalment', () => {
   const loan = calculateMortgage({ principal: 1_000, annualRate: 0, months: 12, paymentType: 'annuity' });
   const projection = projectSalary(100, 12, loan.rows);
