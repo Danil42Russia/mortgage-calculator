@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { formatPaymentPerRuble } from '../src/format.ts';
 import { bankPaymentRatios, calculateMortgage, calculateReservePayoff, cumulativeBankPayments, firstMonthInterestReachesPrincipal, halfRepaidMonth, summarizeSchedule } from '../src/mortgage.ts';
 import type { MortgageInput } from '../src/mortgage.ts';
 
@@ -55,6 +56,26 @@ test('overpayment zones use exact interest in kopecks and include both upper bou
   for (const [totalInterest, zone] of cases) {
     assert.equal(bankPaymentRatios({ principal, totalInterest, totalPaid: principal + totalInterest })?.zone, zone);
   }
+});
+
+test('the per-ruble notice shows the selected term and extra payments even within the same zone', () => {
+  const input: MortgageInput = { ...loan, principal: 1_000_000, annualRate: 18, months: 600 };
+  function notice(options: Partial<MortgageInput>) {
+    const ratios = bankPaymentRatios(calculateMortgage({ ...input, ...options }));
+    assert.ok(ratios);
+    return { zone: ratios.zone, text: formatPaymentPerRuble(ratios) };
+  }
+
+  const twentyYears = notice({ months: 240 });
+  const fiftyYears = notice({});
+  assert.equal(twentyYears.zone, 'red');
+  assert.equal(fiftyYears.zone, 'red');
+  assert.match(twentyYears.text, /2,7\s₽ процентов.*3,7\s₽/);
+  assert.match(fiftyYears.text, /≈\s8\s₽ процентов.*≈\s9\s₽/);
+  const early = notice({ prepayment: { goal: 'term', monthly: { startMonth: 1, amount: 100 } } });
+  assert.equal(early.zone, 'red');
+  assert.notEqual(early.text, fiftyYears.text);
+  assert.match(notice({ annualRate: 0 }).text, /0\s₽ процентов.*1\s₽/);
 });
 
 test('cumulative interest stays zero on an interest-free loan and both series start at zero', () => {

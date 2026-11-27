@@ -1,5 +1,5 @@
 import { SeriesChart } from './chart.ts';
-import { decimal, formatPaymentMonth, formatPaymentPeriod, formatPaymentYear, formatTerm, paymentAxisLabel } from './format.ts';
+import { decimal, formatPaymentMonth, formatPaymentPerRuble, formatPaymentPeriod, formatPaymentYear, formatTerm, paymentAxisLabel } from './format.ts';
 import type { PaymentStart } from './format.ts';
 import { bankPaymentRatios, cumulativeBankPayments, firstMonthInterestReachesPrincipal, halfRepaidMonth, summarizeSchedule } from './mortgage.ts';
 import type { MortgageResult } from './mortgage.ts';
@@ -12,10 +12,10 @@ interface MortgageChartData {
 
 const rubles = (value: number) => decimal(value) + '\u00a0₽';
 
-const overpaymentMessages = {
-  green: 'Зелёная зона. На каждый рубль кредита вы заплатите до 1,50 ₽ процентов включительно.',
-  yellow: 'Жёлтая зона. На каждый рубль кредита вы заплатите больше 1,50 ₽, но не больше 2 ₽ процентов.',
-  red: 'Красная зона. На каждый рубль кредита вы заплатите больше 2 ₽ процентов.',
+const overpaymentZones = {
+  green: 'Зелёная зона (до 1,5× включительно).',
+  yellow: 'Жёлтая зона (свыше 1,5× до 2× включительно).',
+  red: 'Красная зона (свыше 2×).',
 };
 
 export function setupBankPaymentsChart(card: HTMLElement) {
@@ -47,10 +47,9 @@ export function setupBankPaymentsChart(card: HTMLElement) {
     principal.textContent = rubles(result.principal);
     overpayment.textContent = rubles(result.totalInterest);
     interestShare.textContent = decimal(100 * ratios.interest) + '\u00a0% от суммы кредита (' + decimal(ratios.interest) + '×)';
-    if (zoneBanner.dataset.zone !== ratios.zone) {
-      zoneBanner.dataset.zone = ratios.zone;
-      zoneBanner.textContent = overpaymentMessages[ratios.zone];
-    }
+    zoneBanner.dataset.zone = ratios.zone;
+    const notice = overpaymentZones[ratios.zone] + ' ' + formatPaymentPerRuble(ratios);
+    if (zoneBanner.textContent !== notice) zoneBanner.textContent = notice;
     comparison.hidden = !baseline;
     if (baseline) {
       interestSaved.textContent = rubles(baseline.totalInterest - result.totalInterest);

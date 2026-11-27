@@ -52,7 +52,7 @@ const fields = {
   bankLoanLimit: { id: 'bank-loan-limit', min: 0, max: MAX_MORTGAGE_PRINCIPAL, money: true },
   reserveMonths: { id: 'reserve-months', min: 0, max: 120 },
   annualRate: { id: 'rate', min: 0, max: 40, decimal: true },
-  years: { id: 'years', min: 1, max: 40 },
+  years: { id: 'years', min: 1, max: 50 },
   minimumDownPercent: { id: 'down-percent', min: 0, max: 99.99, decimal: true },
   maxDebtSharePercent: { id: 'debt-share', min: 0, max: 100, decimal: true },
   purchaseCosts: { id: 'purchase-costs', min: 0, max: moneyLimit, money: true },

@@ -7,6 +7,14 @@ export const decimal = (value: number) => decimals.format(value);
 export const money = (value: number) => integer(value) + '\u00a0₽';
 export const compactNumber = (value: number) => compact.format(value);
 
+export function formatPaymentPerRuble({ interest, total }: { interest: number; total: number }) {
+  function amount(value: number) {
+    const rounded = Math.round(value * 100) / 100;
+    return (rounded === value ? '' : '≈\u00a0') + decimal(value) + '\u00a0₽';
+  }
+  return 'На каждый рубль кредита приходится ' + amount(interest) + ' процентов. Вместе с долгом — ' + amount(total) + '.';
+}
+
 function percentText(value: string) {
   return value.replace(/\s/gu, '').replace(/%+(?:годовых)?$/iu, '').replace('.', ',');
 }
