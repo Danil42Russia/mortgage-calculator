@@ -28,7 +28,9 @@ export function groupMoneyWhileEditing(value: string, start: number, end = start
   const compact = value.replace(/\s/gu, '');
   if (!/^-?\d+$/u.test(compact)) return { value, start, end };
 
-  const grouped = compact.replace(/^(-?)0+(?=\d)/u, '$1').replace(/\B(?=(?:\d{3})+(?!\d))/gu, '\u00a0');
+  // Deleting a prefix can expose zeros that the user still wants to type in front of.
+  const digits = /\d/u.test(value.slice(start)) ? compact : compact.replace(/^(-?)0+(?=\d)/u, '$1');
+  const grouped = digits.replace(/\B(?=(?:\d{3})+(?!\d))/gu, '\u00a0');
   if (grouped === value) return { value, start, end };
 
   function position(offset: number) {
@@ -39,6 +41,7 @@ export function groupMoneyWhileEditing(value: string, start: number, end = start
       cursor -= 1;
       if (/\d/u.test(grouped[cursor])) digitsToRight -= 1;
     }
+    if (grouped[cursor - 1] === '\u00a0' && /\d/u.test(value[offset - 1] ?? '')) cursor -= 1;
     return cursor;
   }
 

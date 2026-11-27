@@ -13,6 +13,20 @@ test('money input normalizes leading zeros and pasted spaces', () => {
   assert.deepEqual(groupMoneyWhileEditing('0 200\u202f000', 9), { value: '200\u00a0000', start: 7, end: 7 });
 });
 
+test('deleting and retyping the millions prefix preserves all six remaining digits', () => {
+  const amount = '30\u00a0000\u00a0000';
+  const deleted = groupMoneyWhileEditing(amount.slice(2), 0);
+  assert.deepEqual(deleted, { value: '000\u00a0000', start: 0, end: 0 });
+  const firstDigit = groupMoneyWhileEditing('4' + deleted.value, 1);
+  assert.deepEqual(firstDigit, { value: '4\u00a0000\u00a0000', start: 1, end: 1 });
+  const replacement = firstDigit.value.slice(0, firstDigit.start) + '5' + firstDigit.value.slice(firstDigit.end);
+  assert.deepEqual(groupMoneyWhileEditing(replacement, 2), { value: '45\u00a0000\u00a0000', start: 2, end: 2 });
+});
+
+test('deleting the first digit keeps leading zeros of a partially nonzero suffix', () => {
+  assert.deepEqual(groupMoneyWhileEditing('0\u00a0010\u00a0020', 0), { value: '0\u00a0010\u00a0020', start: 0, end: 0 });
+});
+
 test('grouping keeps a middle caret or selection beside the same digits', () => {
   assert.deepEqual(groupMoneyWhileEditing('1230\u00a0000', 3), { value: '1\u00a0230\u00a0000', start: 4, end: 4 });
   assert.deepEqual(groupMoneyWhileEditing('1234567', 2, 5), { value: '1\u00a0234\u00a0567', start: 3, end: 7 });
