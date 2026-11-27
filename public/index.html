@@ -105,6 +105,8 @@
               <span class="input-frame"><input id="budget-monthly-extra" type="text" inputmode="numeric" aria-describedby="budget-extra-hint"><span>₽/мес.</span></span>
             </label>
             <p class="hint" id="budget-extra-hint">С первого месяца эта сумма идёт из зарплаты сверх обязательного платежа и сокращает срок кредита.</p>
+            <div id="budget-planned-payments"></div>
+            <button type="button" class="outline-button add-payment" id="budget-add-payment">Добавить досрочный платёж</button>
           </div>
         </details>
         <details class="budget-terms" id="budget-terms">
@@ -154,7 +156,7 @@
             <div class="chart-tooltip" id="budget-chart-tooltip" hidden></div>
             <div class="sr-only" id="budget-chart-live" role="status"></div>
           </div>
-          <div class="legend balance-legend" hidden><span><i></i> С доплатой</span><span class="baseline-legend"><i></i> Без ежемесячной доплаты</span></div>
+          <div class="legend balance-legend" hidden><span><i></i> По вашему плану</span><span class="baseline-legend"><i></i> <span data-baseline-label></span></span></div>
           <div class="legend payment-legend" hidden><span><i></i> Основной долг</span><span><i></i> Проценты</span></div>
           <p class="hint debt-chart-note" id="budget-chart-note" hidden></p>
         </section>
@@ -266,6 +268,18 @@
       <div><dt>Переплата по процентам</dt><dd data-interest></dd><dd class="hint" data-interest-share></dd></div>
     </dl>
     <p class="status-banner overpayment-zone" role="status"></p>
+    <section class="prepayment-comparison" id="budget-lump-comparison" hidden>
+      <h3>Что дадут запланированные погашения</h3>
+      <p class="hint" id="budget-lump-comparison-note"></p>
+      <table class="lump-comparison-table" aria-label="Сравнение двух стратегий для всех взносов по датам">
+        <thead><tr><th scope="col">Если каждый раз</th><th scope="col">Сокращать срок</th><th scope="col">Уменьшать платёж</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Платёж после первого взноса</th><td id="budget-term-next"></td><td id="budget-payment-next"></td></tr>
+          <tr><th scope="row">Последний платёж</th><td id="budget-term-end"></td><td id="budget-payment-end"></td></tr>
+          <tr><th scope="row">Экономия на процентах</th><td id="budget-term-saving"></td><td id="budget-payment-saving"></td></tr>
+        </tbody>
+      </table>
+    </section>
     <section class="prepayment-comparison" data-prepayment-comparison hidden>
       <h3>Что дают ежемесячные доплаты</h3>
       <dl class="bank-totals">
@@ -282,6 +296,20 @@
     </div>
     <div class="legend"><span><i></i> Всего выплачено банку</span><span class="interest-legend"><i></i> Из них проценты</span></div>
     <p class="hint debt-chart-note" id="budget-interest-threshold" data-interest-threshold></p>
+  </template>
+  <template id="planned-payment-template">
+    <fieldset class="planned-payment">
+      <legend>Досрочный платёж</legend>
+      <div class="field-grid">
+        <label class="mini-field">Сумма, ₽<input data-amount type="text" inputmode="numeric" placeholder="Например, 100 000"></label>
+        <label class="mini-field">Месяц погашения<input data-date type="month"></label>
+        <label class="mini-field field-span">После взноса
+          <select><option value="term">Сократить срок</option><option value="payment">Уменьшить платёж</option></select>
+        </label>
+      </div>
+      <p class="hint" data-feedback role="status"></p>
+      <button type="button" class="outline-button">Удалить платёж</button>
+    </fieldset>
   </template>
 </body>
 </html>

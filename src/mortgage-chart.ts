@@ -7,6 +7,7 @@ import type { MortgageResult } from './mortgage.ts';
 interface MortgageChartData {
   result: MortgageResult;
   baseline: MortgageResult | null;
+  baselineLabel: string;
   start: PaymentStart;
 }
 
@@ -107,7 +108,7 @@ export function setupMortgageChart(card: HTMLElement, onModeChange: () => void) 
       return;
     }
 
-    const { result, baseline, start } = data;
+    const { result, baseline, baselineLabel, start } = data;
     if (payments) {
       const years = summarizeSchedule(result.rows, 'year', start.month);
       const annualPayments = years.map(year => year.payment);
@@ -130,6 +131,7 @@ export function setupMortgageChart(card: HTMLElement, onModeChange: () => void) 
         formatValue: rubles,
       });
     } else {
+      balanceLegend.querySelector<HTMLElement>('[data-baseline-label]')!.textContent = baselineLabel;
       caption.textContent = 'Период выплат — ' + formatPaymentPeriod(1, start, result.rows.length) + '.';
       canvas.setAttribute('aria-label', 'Остаток долга. Используйте стрелки для просмотра значений.');
       const half = halfRepaidMonth(result);
@@ -141,8 +143,8 @@ export function setupMortgageChart(card: HTMLElement, onModeChange: () => void) 
       }
       plot.setSeries({
         values: [result.principal, ...result.rows.map(row => row.balance)],
-        label: baseline ? 'С доплатой' : undefined,
-        comparison: baseline ? { values: [baseline.principal, ...baseline.rows.map(row => row.balance)], label: 'Без ежемесячной доплаты' } : undefined,
+        label: baseline ? 'По вашему плану' : undefined,
+        comparison: baseline ? { values: [baseline.principal, ...baseline.rows.map(row => row.balance)], label: baselineLabel } : undefined,
         marker,
         axisStep: 12,
         firstAxisIndex: 1,

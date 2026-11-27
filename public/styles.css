@@ -153,6 +153,15 @@ details summary:hover { color: var(--accent-dark); }
 .overpayment-zone[data-zone="red"] { background: #fcece9; color: #8c3027; border-color: #edc6c0; }
 .prepayment-comparison { padding-top: 12px; border-top: 1px solid var(--line); }
 .prepayment-comparison h3 { font-size: 15px; }
+.lump-comparison-table { min-width: 0; table-layout: fixed; margin: 8px 0 15px; }
+.lump-comparison-table :is(th, td) { padding: 8px 5px; white-space: normal; overflow-wrap: anywhere; }
+.lump-comparison-table th[scope="row"] { font-weight: 500; background: transparent; }
+#budget-extra-summary { white-space: normal; text-align: right; }
+.planned-payment { min-width: 0; margin: 8px 0; padding: 10px; border: 1px solid var(--line); border-radius: 10px; }
+.planned-payment legend { padding: 0 4px; font-size: 13px; font-weight: 650; }
+.planned-payment .hint { margin: 8px 0; }
+.add-payment { justify-self: start; }
+#budget-planned-payments:empty { display: none; }
 @container (max-width: 520px) {
   .bank-totals { grid-template-columns: 1fr; gap: 6px; }
   .bank-totals > div { display: flex; align-items: baseline; flex-wrap: wrap; justify-content: space-between; column-gap: 8px; }

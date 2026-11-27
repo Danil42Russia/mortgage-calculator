@@ -3,10 +3,11 @@ import type { AffordabilityInput } from './affordability.ts';
 import { calculatorHash, readChoiceParam, readNumberParam, restoreStartMonth } from './calculator-uri.ts';
 import { SeriesChart } from './chart.ts';
 import { setupBankPaymentsChart, setupMortgageChart } from './mortgage-chart.ts';
-import { decimal, formatPaymentPeriod, formatTerm, integer, legacyStartMonth, money, monthWord, numberFromInput, parseStartMonth, paymentAxisLabel, yearWord } from './format.ts';
+import { decimal, formatPaymentMonth, formatPaymentPeriod, formatTerm, integer, legacyStartMonth, money, monthWord, numberFromInput, parseStartMonth, paymentAxisLabel, yearWord } from './format.ts';
 import type { PaymentStart } from './format.ts';
 import { bindMoneyGrouping, bindPercentFormatting } from './money-input.ts';
 import { calculateReservePayoff, MAX_MORTGAGE_PRINCIPAL } from './mortgage.ts';
+import { encodePlan, scheduledLumps, setupPlannedPayments } from './planned-payments.ts';
 import { estimateSalary2026, projectSalary } from './salary.ts';
 import type { SalaryBalance, SalaryEstimate, SalaryMonth } from './salary.ts';
 import { MARKET_RATE } from './scenario.ts';
@@ -150,6 +151,7 @@ export function setupAffordability(onChange: () => void) {
   const reserveButtons = document.querySelectorAll<HTMLButtonElement>('[data-reserve-months]');
   const useReserveInput = budgetElement<HTMLInputElement>('use-reserve');
   const startInput = budgetElement<HTMLInputElement>('start-month');
+  const plannedPayments = setupPlannedPayments(render);
   const priceInput = budgetElement<HTMLInputElement>('apartment-price');
   const incomeModes = document.querySelectorAll<HTMLInputElement>('input[name="budget-income-mode"]');
   const salaryPeriods = document.querySelectorAll<HTMLInputElement>('input[name="salary-period"]');
@@ -207,7 +209,11 @@ export function setupAffordability(onChange: () => void) {
     budgetText('share-hint', monthlyIncome ? 'До ' + decimal(result.paymentBudget) + '\u00a0₽ в месяц из зарплаты на руки.'
       : 'Какой процент зарплаты на руки вы готовы отдавать за ипотеку.');
     budgetText('terms-summary', decimal(state.annualRate) + '% · ' + years + ' ' + yearWord(years));
-    budgetText('extra-summary', monthlyExtra ? money(monthlyExtra) + '/мес.' : 'По желанию');
+    const extras = [
+      monthlyExtra ? money(monthlyExtra) + '/мес.' : '',
+      plannedPayments.plan.length ? 'Платежей по датам — ' + plannedPayments.plan.length : '',
+    ];
+    budgetText('extra-summary', extras.filter(Boolean).join(' + ') || 'По желанию');
 
     for (const button of reserveButtons) {
       button.setAttribute('aria-pressed', String(Number(button.dataset.reserveMonths) === state.reserveMonths));
@@ -241,14 +247,31 @@ export function setupAffordability(onChange: () => void) {
     status.hidden = !notice;
 
     const payoffReserve = useReserve ? quote?.reserve ?? 0 : 0;
+    const lumps = scheduledLumps(plannedPayments.plan, start, months);
     const payoff = quote?.principal ? calculateReservePayoff({
       principal: quote.principal,
       annualRate: budget.annualRate,
       months,
       paymentType: 'annuity',
-      prepayment: { goal: 'term', payoffReserve, monthly: { startMonth: 1, amount: monthlyExtra } },
+      prepayment: { goal: 'term', payoffReserve, monthly: { startMonth: 1, amount: monthlyExtra }, lumps },
     }) : null;
     const schedule = payoff?.schedule ?? null;
+    plannedPayments.showApplied(start, months, schedule);
+    const comparison = payoff?.lumpComparison;
+    budgetElement('lump-comparison').hidden = !comparison;
+    if (comparison && schedule) {
+      const firstLumpMonth = schedule.rows.find(row => row.fromLump)!.month;
+      budgetText('lump-comparison-note', 'По вашему плану последний платёж — ' + formatPaymentMonth(schedule.rows.length, start)
+        + '. Без платежей по датам — ' + formatPaymentMonth(comparison.withoutLump.rows.length, start)
+        + '. Экономия на процентах — ' + decimal(comparison.withoutLump.totalInterest - schedule.totalInterest)
+        + ' ₽. Ежемесячная доплата и подушка учтены в обоих расчётах.');
+      for (const goal of ['term', 'payment'] as const) {
+        const variant = comparison[goal];
+        budgetText(goal + '-next', decimal(variant.rows[firstLumpMonth]?.scheduledPayment ?? 0) + ' ₽');
+        budgetText(goal + '-end', formatPaymentMonth(variant.rows.length, start));
+        budgetText(goal + '-saving', decimal(comparison.withoutLump.totalInterest - variant.totalInterest) + ' ₽');
+      }
+    }
     const lastPayment = schedule?.rows.at(-1);
     budgetElement('payoff-result').hidden = !useReserve || !lastPayment;
     if (useReserve && payoff && lastPayment) {
@@ -262,11 +285,11 @@ export function setupAffordability(onChange: () => void) {
     const balances = salary ? projectSalary(estimate ?? salary, months, schedule?.rows ?? []) : [];
     if (quote && balances.length) {
       const remaining = monthlyIncome - balances[0].payment;
-      const paysExtra = monthlyExtra > 0 && !cashPurchase;
-      const label = !paysExtra ? 'После ипотеки остаётся' : remaining < 0
+      const paysExtra = (monthlyExtra > 0 || !!schedule?.rows[0]?.fromLump) && !cashPurchase;
+      const label = !paysExtra ? (comparison ? 'После первого платежа останется' : 'После ипотеки остаётся') : remaining < 0
         ? 'Из средней зарплаты на первый платёж с доплатой не хватит' : 'Из средней зарплаты после первого платежа с доплатой останется';
       budgetText('monthly-left-label', label);
-      budgetText('monthly-left-amount', decimal(Math.abs(remaining)) + '\u00a0₽' + (paysExtra ? '' : ' в месяц'));
+      budgetText('monthly-left-amount', decimal(Math.abs(remaining)) + '\u00a0₽' + (paysExtra || comparison ? '' : ' в месяц'));
     }
     budgetElement('salary').hidden = !salary;
     budgetElement('open-salary').hidden = !salary;
@@ -275,7 +298,10 @@ export function setupAffordability(onChange: () => void) {
     showSalaryChart(salaryChart, balances, salaryPeriod, schedule?.rows.length ?? months, start);
     showSalaryFlow(estimate, balances, start);
     const baseline = payoff?.withoutMonthlyExtra ?? null;
-    chart.set(schedule ? { result: schedule, baseline, start } : null);
+    chart.set(schedule ? {
+      result: schedule, start, baseline: comparison?.withoutLump ?? baseline,
+      baselineLabel: comparison ? 'Без платежей по датам' : 'Без ежемесячной доплаты',
+    } : null);
     updateBankPayments(schedule, baseline, start);
     budgetElement('chart-empty').hidden = schedule !== null;
     budgetText('chart-empty', cashPurchase ? 'При покупке без ипотеки платежей по кредиту нет.' : monthlyIncome ? 'График появится, когда будет рассчитана сумма кредита.'
@@ -358,6 +384,7 @@ export function setupAffordability(onChange: () => void) {
     render();
   });
 
+
   startInput.addEventListener('input', () => {
     if (!parseStartMonth(startInput.value)) {
       startInput.setAttribute('aria-invalid', 'true');
@@ -404,13 +431,14 @@ export function setupAffordability(onChange: () => void) {
     next.salaryPeriod = readChoiceParam(params, 'salaryPeriod', ['year', 'term']) ?? defaults.salaryPeriod;
     next.useReserve = params.get('useReserve') === 'true';
     next.startMonth = restoreStartMonth(params);
+    plannedPayments.restore(params.get('payments') ?? '');
     state = next;
     startInput.value = state.startMonth;
     startInput.removeAttribute('aria-invalid');
     useReserveInput.checked = state.useReserve;
     incomeModes.forEach(input => { input.checked = input.value === state.salaryMode; });
     salaryPeriods.forEach(input => { input.checked = input.value === state.salaryPeriod; });
-    budgetElement<HTMLDetailsElement>('extra-options').open = state.monthlyExtra > 0;
+    budgetElement<HTMLDetailsElement>('extra-options').open = state.monthlyExtra > 0 || plannedPayments.plan.length > 0;
     budgetElement<HTMLDetailsElement>('terms').open = state.annualRate !== defaults.annualRate
       || state.years !== defaults.years || state.minimumDownPercent !== defaults.minimumDownPercent || state.bankLoanLimit !== null || state.purchaseCosts > 0;
     budgetElement<HTMLDetailsElement>('price-options').open = state.apartmentPrice !== null;
@@ -419,5 +447,7 @@ export function setupAffordability(onChange: () => void) {
   }
 
   // Include even the current month so the shared timeline stays fixed when opened later.
-  return { restore, hash: () => calculatorHash('affordability', { ...state, debtChart: chart.mode }, { ...defaults, startMonth: '', debtChart: 'balance' }) };
+  return { restore, hash: () => calculatorHash('affordability',
+    { ...state, payments: encodePlan(plannedPayments.plan), debtChart: chart.mode },
+    { ...defaults, startMonth: '', payments: '', debtChart: 'balance' }) };
 }

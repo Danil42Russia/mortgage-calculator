@@ -1,6 +1,8 @@
 export type PaymentType = 'annuity' | 'declining';
 export type PrepaymentGoal = 'term' | 'payment';
 
+export interface LumpPayment { month: number; amount: number; goal?: PrepaymentGoal }
+
 export interface MortgageInput {
   principal: number;
   annualRate: number;
@@ -10,7 +12,8 @@ export interface MortgageInput {
   prepayment?: {
     goal: PrepaymentGoal;
     monthly?: { startMonth: number; amount: number };
-    lump?: { month: number; amount: number };
+    lump?: LumpPayment;
+    lumps?: readonly LumpPayment[];
     payoffReserve?: number;
   };
   annualInsuranceRate?: number;
@@ -23,6 +26,7 @@ export interface PaymentRow {
   scheduledPrincipal: number;
   interest: number;
   prepayment: number;
+  fromLump?: number;
   /** Portion of prepayment funded by the existing mortgage reserve. */
   fromReserve?: number;
   insurance: number;
@@ -43,6 +47,11 @@ const toCents = (rubles: number) => Math.round(rubles * 100);
 const toRubles = (cents: number) => cents / 100;
 const monthlyRate = (annualRate: number) => annualRate / 1200;
 export const MAX_MORTGAGE_PRINCIPAL = 1e11;
+
+function lumpPayments(prepayment: MortgageInput['prepayment']) {
+  const lumps = prepayment?.lumps ?? [];
+  return prepayment?.lump ? [prepayment.lump, ...lumps] : lumps;
+}
 
 function scheduledAmount(balance: number, months: number, rate: number, type: PaymentType) {
   if (type === 'declining' || rate === 0) {
@@ -98,9 +107,13 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
     requireNumber(prepayment.monthly.startMonth, 'First prepayment month', 1, 1200, true);
     requireNumber(prepayment.monthly.amount, 'Monthly prepayment', 0, 1e11);
   }
-  if (prepayment?.lump) {
-    requireNumber(prepayment.lump.month, 'Lump prepayment month', 1, 1200, true);
-    requireNumber(prepayment.lump.amount, 'Lump prepayment', 0, 1e11);
+  const byMonth = new Map<number, LumpPayment[]>();
+  for (const lump of lumpPayments(prepayment)) {
+    requireNumber(lump.month, 'Lump prepayment month', 1, 1200, true);
+    requireNumber(lump.amount, 'Lump prepayment', 0, MAX_MORTGAGE_PRINCIPAL);
+    const entries = byMonth.get(lump.month);
+    if (entries) entries.push(lump);
+    else byMonth.set(lump.month, [lump]);
   }
 
   const originalBalance = toCents(principal);
@@ -108,12 +121,12 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
   requireNumber(payoffReserve, 'Payoff reserve', 0, Number.MAX_SAFE_INTEGER / 100);
   const reserveCents = toCents(payoffReserve);
   const monthlyExtra = toCents(prepayment?.monthly?.amount ?? 0);
-  const lumpExtra = toCents(prepayment?.lump?.amount ?? 0);
   let balance = originalBalance;
   let endMonth = months;
   let rate = monthlyRate(annualRate);
   let currentAnnualRate = annualRate;
   let amount = scheduledAmount(balance, months, rate, paymentType);
+  let pendingTermReduction = false;
   let interestSum = 0;
   let extraSum = 0;
   let insuranceSum = 0;
@@ -122,8 +135,9 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
   for (let month = 1; month <= endMonth && balance > 0; month += 1) {
     if (rateChange?.month === month) {
       // Preserve the shorter term already earned under the preceding payment.
-      if (prepayment?.goal === 'term' && extraSum > 0) {
+      if (pendingTermReduction) {
         endMonth = month - 1 + remainingTerm(balance, amount, rate, paymentType, endMonth - month + 1);
+        pendingTermReduction = false;
       }
       currentAnnualRate = rateChange.annualRate;
       rate = monthlyRate(currentAnnualRate);
@@ -136,12 +150,19 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
       ? balance
       : Math.min(balance, principalForMonth(balance, amount, rate, paymentType));
 
-    const recurring = prepayment?.monthly && month >= prepayment.monthly.startMonth ? monthlyExtra : 0;
-    const oneOff = prepayment?.lump?.month === month ? lumpExtra : 0;
-    const otherExtra = Math.min(balance - scheduledPrincipal, recurring + oneOff);
-    balance -= scheduledPrincipal + otherExtra;
+    balance -= scheduledPrincipal;
+    const recurring = prepayment?.monthly && month >= prepayment.monthly.startMonth ? Math.min(balance, monthlyExtra) : 0;
+    balance -= recurring;
+    let oneOff = 0;
+    let forLowerPayment = prepayment?.goal === 'payment' ? recurring : 0;
+    for (const lump of byMonth.get(month) ?? []) {
+      const applied = Math.min(balance, toCents(lump.amount));
+      balance -= applied;
+      oneOff += applied;
+      if ((lump.goal ?? prepayment?.goal) === 'payment') forLowerPayment += applied;
+    }
     const fromReserve = balance <= reserveCents ? balance : 0;
-    const extra = otherExtra + fromReserve;
+    const extra = recurring + oneOff + fromReserve;
     balance -= fromReserve;
     interestSum += interest;
     extraSum += extra;
@@ -154,12 +175,18 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
       scheduledPrincipal: toRubles(scheduledPrincipal),
       interest: toRubles(interest),
       prepayment: toRubles(extra),
+      ...(oneOff > 0 ? { fromLump: toRubles(oneOff) } : {}),
       ...(fromReserve > 0 ? { fromReserve: toRubles(fromReserve) } : {}),
       insurance: toRubles(insurance),
       balance: toRubles(balance),
     });
 
-    if (prepayment?.goal === 'payment' && extra > 0 && balance > 0) {
+    pendingTermReduction ||= recurring + oneOff > forLowerPayment;
+    if (forLowerPayment > 0 && balance > 0) {
+      if (pendingTermReduction) {
+        endMonth = month + remainingTerm(balance + forLowerPayment, amount, rate, paymentType, endMonth - month);
+        pendingTermReduction = false;
+      }
       amount = scheduledAmount(balance, endMonth - month, rate, paymentType);
     }
   }
@@ -185,7 +212,21 @@ export function calculateReservePayoff(input: MortgageInput) {
   const withoutMonthlyExtra = input.prepayment?.monthly?.amount
     ? calculateMortgage({ ...input, prepayment: { ...input.prepayment, monthly: undefined } })
     : null;
-  return { schedule, monthsSaved, withoutMonthlyExtra };
+  const lumps = lumpPayments(input.prepayment);
+  let lumpComparison = null;
+  if (input.prepayment && lumps.length && schedule.rows.some(row => row.fromLump)) {
+    const prepayment = { ...input.prepayment, lump: undefined, lumps: undefined };
+    function allWithGoal(goal: PrepaymentGoal) {
+      if (lumps.every(lump => (lump.goal ?? prepayment.goal) === goal)) return schedule;
+      return calculateMortgage({ ...input, prepayment: { ...prepayment, lumps: lumps.map(lump => ({ ...lump, goal })) } });
+    }
+    lumpComparison = {
+      withoutLump: calculateMortgage({ ...input, prepayment }),
+      term: allWithGoal('term'),
+      payment: allWithGoal('payment'),
+    };
+  }
+  return { schedule, monthsSaved, withoutMonthlyExtra, lumpComparison };
 }
 
 export interface SchedulePeriod {
