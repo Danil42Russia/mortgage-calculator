@@ -149,3 +149,52 @@ test('invalid inputs fail explicitly and zero income yields no loan', () => {
   assert.throws(() => calculateAffordability({ ...base, savings: -1 }), RangeError);
   assert.equal(calculateAffordability({ ...base, monthlyIncome: 0 }).quote, null);
 });
+
+test('a selected apartment recalculates its loan, payment and reserve without moving the budget limit', () => {
+  const input = { ...base, savings: 200_000 };
+  const { maximumPrice } = calculateAffordability(input);
+  assert.equal(maximumPrice, 320_000);
+  const result = calculateAffordability({ ...input, apartmentPrice: 260_000 });
+  assert.equal(result.maximumPrice, maximumPrice);
+  assert.deepEqual(result.quote, {
+    principal: 120_000, price: 260_000, payment: 10_000, reserve: 60_000, downPayment: 140_000,
+    requiredSavings: 200_000, remainingIncome: 80_000, debtSharePercent: 10,
+  });
+  assert.equal(calculateAffordability({ ...input, apartmentPrice: maximumPrice }).quote?.price, maximumPrice);
+  assert.equal(calculateAffordability({ ...input, apartmentPrice: maximumPrice + 1 }).quote, null);
+});
+
+test('bank requirements constrain the price limit before validating a chosen apartment', () => {
+  const input = { ...base, savings: 200_000, apartmentPrice: 310_000 };
+  assert.ok(calculateAffordability(input).quote);
+  const higherDown = calculateAffordability({ ...input, minimumDownPercent: 50 });
+  assert.ok(higherDown.maximumPrice < input.apartmentPrice);
+  assert.equal(higherDown.quote, null);
+  const capped = calculateAffordability({ ...input, bankLoanLimit: 120_000 });
+  assert.equal(capped.maximumPrice, 260_000);
+  assert.equal(capped.quote, null);
+  assert.equal(capped.limitingFactor, 'bank-limit');
+});
+
+test('an income-only budget uses the bank minimum and a cash purchase only uses its price', () => {
+  const planned = calculateAffordability({ ...base, apartmentPrice: 200_000, bankLoanLimit: 180_000 });
+  assert.equal(planned.maximumPrice, 240_000);
+  assert.equal(planned.quote?.downPayment, 50_000);
+  assert.equal(planned.quote?.reserve, 75_000);
+  for (const monthlyIncome of [0, 100_000]) {
+    const cash = calculateAffordability({ ...base, savings: 400_000, monthlyIncome, apartmentPrice: 350_000 });
+    assert.equal(cash.quote?.principal, 0);
+    assert.equal(cash.quote?.reserve, 0);
+    assert.equal(cash.quote?.requiredSavings, 350_000);
+    assert.equal(cash.quote?.debtSharePercent, 0);
+  }
+});
+
+test('the price maximum considers ruble reserve rounding and validates against that reachable price', () => {
+  const input = { ...base, months: 180, reserveMonths: 120, savings: 100, bankLoanLimit: 10 };
+  const result = calculateAffordability(input);
+  assert.equal(result.maximumPrice, 103);
+  assert.equal(result.quote?.price, 103);
+  assert.equal(calculateAffordability({ ...input, apartmentPrice: 103 }).quote?.requiredSavings, 100);
+  assert.equal(calculateAffordability({ ...input, apartmentPrice: 104 }).quote, null);
+});

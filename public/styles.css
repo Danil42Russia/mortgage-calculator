@@ -254,6 +254,7 @@ tbody tr:hover { background: #faf8fe; }
 .budget-reserve-controls .segmented { background: #eee8f7; }
 .budget-reserve-controls button { padding-inline: 9px; }
 .budget-terms { margin-top: 15px; }
+.price-error { color: #9b3d2c; }
 .budget-terms-summary { margin-left: auto; color: var(--quiet); font-weight: 550; white-space: nowrap; }
 .cash-card { padding: 20px 22px 17px; }
 .cash-total { color: var(--accent-dark); font-size: clamp(18px, 2.4vw, 27px); letter-spacing: -.035em; white-space: nowrap; }

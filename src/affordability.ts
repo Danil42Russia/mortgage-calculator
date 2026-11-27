@@ -11,6 +11,8 @@ export interface AffordabilityInput {
   minimumDownPercent: number;
   maxDebtSharePercent: number;
   reserveMonths: number;
+  apartmentPrice?: number | null;
+  bankLoanLimit?: number | null;
 }
 
 export interface AffordabilityQuote {
@@ -25,11 +27,12 @@ export interface AffordabilityQuote {
 }
 
 export interface AffordabilityResult {
+  maximumPrice: number;
   paymentBudget: number;
   reserveMonths: number;
   incomeQuote: AffordabilityQuote | null;
   quote: AffordabilityQuote | null;
-  limitingFactor: 'income' | 'savings' | 'monthly-budget';
+  limitingFactor: 'income' | 'savings' | 'monthly-budget' | 'bank-limit';
   additionalSavingsForIncomeQuote: number | null;
 }
 
@@ -50,17 +53,38 @@ function highestPrincipal(upperBound: number, fits: (principal: number) => boole
   return low;
 }
 
+function principalForMaximumPrice(limit: number, reserveMonths: number, reserveFor: (loan: number) => number) {
+  let best = limit;
+  let bestGain = best - reserveFor(best);
+  // Compare net buying power (loan minus reserve). Over a step of reserveMonths rubles,
+  // a linear annuity changes by either always <= 100 kopecks or always >= 100 kopecks.
+  // Thus each residue class has its maximum at an end. Include the initial 1-kopeck payment floor.
+  const window = Math.min(limit, 2 * reserveMonths);
+  for (let offset = 0; offset < window; offset += 1) {
+    for (const loan of [offset, limit - offset]) {
+      const gain = loan - reserveFor(loan);
+      if (gain > bestGain) {
+        best = loan;
+        bestGain = gain;
+      }
+    }
+  }
+  return best;
+}
+
 /** Estimate a fixed-rate annuity for one borrower. Money inputs use whole rubles. */
 export function calculateAffordability(input: AffordabilityInput): AffordabilityResult {
   const {
     monthlyIncome, livingCosts, monthlyDebts, monthlyRemainder, savings,
-    annualRate, months, minimumDownPercent, maxDebtSharePercent,
+    annualRate, months, minimumDownPercent, maxDebtSharePercent, apartmentPrice, bankLoanLimit,
   } = input;
   requireRange(monthlyIncome, 'Monthly income', 0, 1e9, true);
   requireRange(livingCosts, 'Monthly living costs', 0, 1e9, true);
   requireRange(monthlyDebts, 'Monthly debts', 0, 1e9, true);
   requireRange(monthlyRemainder, 'Minimum monthly remainder', 0, 1e9, true);
   if (savings !== null) requireRange(savings, 'Savings', 0, 1e9, true);
+  if (apartmentPrice != null) requireRange(apartmentPrice, 'Apartment price', 0, Number.MAX_SAFE_INTEGER, true);
+  if (bankLoanLimit != null) requireRange(bankLoanLimit, 'Bank loan limit', 0, MAX_MORTGAGE_PRINCIPAL, true);
   requireRange(annualRate, 'Annual rate', 0, 100);
   requireRange(months, 'Number of months', 1, 1200, true);
   requireRange(minimumDownPercent, 'Minimum down payment percent', 0, 99.99);
@@ -90,35 +114,47 @@ export function calculateAffordability(input: AffordabilityInput): Affordability
       reserve,
       requiredSavings: downPayment + reserve,
       remainingIncome: freeIncome - payment,
-      debtSharePercent: (monthlyDebts + payment) / monthlyIncome * 100,
+      debtSharePercent: monthlyIncome ? (monthlyDebts + payment) / monthlyIncome * 100 : 0,
     };
   }
 
   const paymentBudget = budgetCents / 100;
   const incomePrincipal = highestPrincipal(MAX_MORTGAGE_PRINCIPAL, principal => paymentCents(principal) <= budgetCents);
-  if (!incomePrincipal) {
-    return {
-      paymentBudget, reserveMonths, incomeQuote: null, quote: null,
-      limitingFactor: 'monthly-budget', additionalSavingsForIncomeQuote: null,
-    };
-  }
+  const loanCap = Math.min(incomePrincipal, bankLoanLimit ?? MAX_MORTGAGE_PRINCIPAL);
+  const incomeQuote = loanCap ? makeQuote(loanCap, minimumDown(loanCap)) : null;
+  const principal = savings === null ? loanCap : highestPrincipal(loanCap, amount => neededCash(amount) <= savings);
+  const pricePrincipal = savings === null ? principal : principalForMaximumPrice(principal, reserveMonths, reserveFor);
+  let quote = incomeQuote;
+  if (savings !== null) quote = principal ? makeQuote(pricePrincipal, savings - reserveFor(pricePrincipal)) : null;
+  const maximumPrice = Math.max(quote?.price ?? 0, savings ?? 0);
 
-  const incomeQuote = makeQuote(incomePrincipal, minimumDown(incomePrincipal));
-  if (savings === null) {
-    return {
-      paymentBudget, reserveMonths, incomeQuote, quote: incomeQuote,
-      limitingFactor: 'income', additionalSavingsForIncomeQuote: null,
-    };
+  if (apartmentPrice != null) {
+    if (!apartmentPrice || apartmentPrice > maximumPrice) {
+      quote = null;
+    } else if (savings === null) {
+      const loan = highestPrincipal(principal, amount => amount + minimumDown(amount) <= apartmentPrice);
+      quote = makeQuote(loan, apartmentPrice - loan);
+    } else if (savings >= apartmentPrice) {
+      quote = makeQuote(0, apartmentPrice);
+    } else {
+      const uncovered = apartmentPrice - savings;
+      let low = uncovered;
+      let high = Math.min(pricePrincipal, apartmentPrice);
+      // Find a whole-ruble loan covering both the unfunded price and its own payment reserve.
+      while (low < high) {
+        const middle = Math.floor((low + high) / 2);
+        if (middle < uncovered + reserveFor(middle)) low = middle + 1;
+        else high = middle;
+      }
+      quote = makeQuote(low, apartmentPrice - low);
+    }
   }
-
-  const principal = highestPrincipal(incomePrincipal, amount => neededCash(amount) <= savings);
-  const quote = principal ? makeQuote(principal, savings - reserveFor(principal)) : null;
   return {
-    paymentBudget,
+    maximumPrice, paymentBudget,
     reserveMonths,
     incomeQuote,
     quote,
-    limitingFactor: principal < incomePrincipal ? 'savings' : 'income',
-    additionalSavingsForIncomeQuote: Math.max(0, incomeQuote.requiredSavings - savings),
+    limitingFactor: !incomePrincipal ? 'monthly-budget' : principal < loanCap ? 'savings' : loanCap < incomePrincipal ? 'bank-limit' : 'income',
+    additionalSavingsForIncomeQuote: savings !== null && incomeQuote ? Math.max(0, incomeQuote.requiredSavings - savings) : null,
   };
 }

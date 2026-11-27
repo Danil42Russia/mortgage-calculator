@@ -88,6 +88,16 @@
             <p id="budget-payoff-details"></p>
           </div>
         </fieldset>
+        <details class="budget-terms" id="budget-price-options">
+          <summary><span>Цена квартиры</span><span class="budget-terms-summary" id="budget-price-summary">По желанию</span></summary>
+          <div class="detail-content">
+            <label class="budget-field" for="budget-apartment-price">Цена выбранной квартиры
+              <span class="input-frame"><input id="budget-apartment-price" type="text" inputmode="numeric" placeholder="По максимуму" aria-describedby="budget-price-limit budget-price-error"><span>₽</span></span>
+            </label>
+            <p class="hint" id="budget-price-limit"></p>
+            <p class="hint price-error" id="budget-price-error" role="status" hidden></p>
+          </div>
+        </details>
         <details class="budget-terms" id="budget-extra-options">
           <summary><span>Досрочные платежи</span><span class="budget-terms-summary" id="budget-extra-summary"></span></summary>
           <div class="detail-content">
@@ -104,10 +114,11 @@
               <label class="mini-field" for="budget-rate">Ставка, % годовых<input id="budget-rate" type="text" inputmode="decimal"></label>
               <label class="mini-field" for="budget-years">Срок, лет<input id="budget-years" type="text" inputmode="numeric"></label>
               <label class="mini-field" for="budget-down-percent">Минимальный взнос банка, %<input id="budget-down-percent" type="text" inputmode="decimal"></label>
+              <label class="mini-field" for="budget-bank-loan-limit">Лимит кредита по предложению банка, ₽<input id="budget-bank-loan-limit" type="text" inputmode="numeric" placeholder="Если известен"></label>
               <label class="mini-field" for="budget-purchase-costs">Расходы на сделку отдельно, ₽<input id="budget-purchase-costs" type="text" inputmode="numeric"></label>
               <label class="mini-field field-span" for="budget-start-month">Месяц первого платежа<input id="budget-start-month" type="month" min="1000-01" max="9999-12" placeholder="ГГГГ-ММ" required></label>
             </div>
-            <p class="hint">Подставьте ставку, срок и минимальный взнос из предложения банка, если оно уже есть.</p>
+            <p class="hint">Укажите ставку, минимальный взнос и лимит из предложения банка. При повышении взноса измените процент, чтобы пересчитать максимум.</p>
           </div>
         </details>
       </section>
