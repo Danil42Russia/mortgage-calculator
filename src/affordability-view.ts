@@ -1,9 +1,9 @@
 import { calculateAffordability } from './affordability.ts';
 import type { AffordabilityInput } from './affordability.ts';
 import { calculatorHash, readChoiceParam, readNumberParam, restoreStartMonth } from './calculator-uri.ts';
-import { durationAxis, SeriesChart } from './chart.ts';
+import { SeriesChart } from './chart.ts';
 import { setupBankPaymentsChart, setupMortgageChart } from './mortgage-chart.ts';
-import { decimal, formatPaymentMonth, formatTerm, integer, legacyStartMonth, money, monthWord, numberFromInput, parseStartMonth, yearWord } from './format.ts';
+import { decimal, formatPaymentPeriod, formatTerm, integer, legacyStartMonth, money, monthWord, numberFromInput, parseStartMonth, paymentAxisLabel, yearWord } from './format.ts';
 import type { PaymentStart } from './format.ts';
 import { bindMoneyGrouping, bindPercentFormatting } from './money-input.ts';
 import { calculateReservePayoff } from './mortgage.ts';
@@ -63,10 +63,6 @@ function budgetText(id: string, text: string) {
   budgetElement(id).textContent = text;
 }
 
-const monthNames = [
-  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
-];
 const rateList = new Intl.ListFormat('ru-RU');
 type SalaryRow = Pick<SalaryMonth, 'gross' | 'tax' | 'net'> & { rates?: readonly number[] };
 
@@ -105,7 +101,7 @@ function showSalaryFlow(estimate: SalaryEstimate | null, balances: SalaryBalance
 
   let deficitMonths = 0;
   for (const [index, month] of estimate.months.entries()) {
-    if (appendRow(body, formatPaymentMonth(index + 1, start), month, balances[index].payment) < 0) deficitMonths += 1;
+    if (appendRow(body, formatPaymentPeriod(index + 1, start), month, balances[index].payment) < 0) deficitMonths += 1;
   }
   const annualPayment = estimate.annualNet - balances[11].accumulated;
   appendRow(total, 'За 12 месяцев', { gross: estimate.annualGross, tax: estimate.annualTax, net: estimate.annualNet }, annualPayment);
@@ -120,22 +116,23 @@ function showSalaryChart(chart: SeriesChart, balances: SalaryBalance[], period: 
   }
   const byMonth = period === 'year';
   const amount = (value: number) => decimal(value) + '\u00a0₽';
-  const total = balances[(byMonth ? 12 : termMonths) - 1].accumulated;
-  const horizon = byMonth ? 'первые 12 месяцев' : formatTerm(termMonths);
+  const lastMonth = byMonth ? 12 : termMonths;
+  const total = balances[lastMonth - 1].accumulated;
   budgetText('salary-chart-title', byMonth ? 'Остаток после ипотеки по месяцам' : 'Сколько накопится, если откладывать весь остаток');
-  budgetText('salary-sum', 'Всего за ' + horizon + ' — ' + amount(total));
+  budgetText('salary-sum', formatPaymentPeriod(1, start, lastMonth) + ' · всего ' + amount(total));
   chart.setSeries(byMonth ? {
     values: balances.slice(0, 12).map(month => month.remaining),
     axisStep: 1,
     fitValues: true,
-    axisLabel: index => monthNames[(start.month - 1 + index) % 12].slice(0, 3),
-    pointLabel: index => formatPaymentMonth(index + 1, start),
+    axisLabel: index => paymentAxisLabel(index + 1, start),
+    pointLabel: index => formatPaymentPeriod(index + 1, start),
     formatValue: amount,
   } : {
     values: [0, ...balances.slice(0, termMonths).map(month => month.accumulated)],
     axisStep: 12,
-    axisLabel: durationAxis,
-    pointLabel: index => index ? formatPaymentMonth(index, start) : 'До первого платежа',
+    firstAxisIndex: 1,
+    axisLabel: index => paymentAxisLabel(index, start),
+    pointLabel: index => formatPaymentPeriod(index, start),
     formatValue: amount,
   });
 }
@@ -229,8 +226,8 @@ export function setupAffordability(onChange: () => void) {
     if (useReserve && payoff && lastPayment) {
       const fromReserve = lastPayment.fromReserve ?? 0;
       budgetText('payoff-time', 'Погашение из подушки экономит ' + formatTerm(payoff.monthsSaved, 'long') + '.');
-      budgetText('payoff-details', 'Кредит закроется через ' + formatTerm(lastPayment.month, 'long')
-        + ' (' + formatPaymentMonth(lastPayment.month, start) + ').'
+      budgetText('payoff-details', 'Последний платёж — ' + formatPaymentPeriod(lastPayment.month, start)
+        + '. Срок с учётом погашения — ' + formatTerm(lastPayment.month, 'long') + '.'
         + (fromReserve ? ' Из подушки уйдёт ' + decimal(fromReserve) + '\u00a0₽.' : '')
         + ' В подушке останется ' + decimal(payoffReserve - fromReserve) + '\u00a0₽.');
     }

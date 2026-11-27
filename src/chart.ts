@@ -1,4 +1,4 @@
-import { compactNumber, formatTerm, money, yearWord } from './format.ts';
+import { compactNumber, money } from './format.ts';
 import { valueAxis } from './chart-scale.ts';
 
 interface Plot {
@@ -10,16 +10,12 @@ interface Plot {
   y: (balance: number) => number;
 }
 
-export function durationAxis(month: number, last: boolean) {
-  if (!last) return String(month / 12);
-  return month % 12 ? formatTerm(month) : month / 12 + ' ' + yearWord(month / 12);
-}
-
 interface ChartSeries {
   values: number[];
   label?: string;
   comparison?: { values: number[]; label: string };
-  axisLabel: (index: number, last: boolean) => string;
+  axisLabel: (index: number) => string;
+  firstAxisIndex?: number;
   pointLabel: (index: number) => string;
   axisStep: number;
   valueAxisLabel?: string;
@@ -142,14 +138,21 @@ export class SeriesChart {
     }
 
     const stride = data.axisStep * Math.max(1, Math.ceil(maxMonth / data.axisStep / (width < 410 ? 3 : 4)));
-    for (let index = 0; index < maxMonth; index += stride) {
+    const lastLabel = data.axisLabel(maxMonth);
+    const lastWidth = context.measureText(lastLabel).width;
+    const lastLeft = x(maxMonth) - (data.stack ? lastWidth / 2 : lastWidth);
+    let previousEnd = -Infinity;
+    context.textAlign = 'center';
+    for (let index = data.firstAxisIndex ?? 0; index < maxMonth; index += stride) {
       const position = x(index);
-      if (index !== 0 && position > right - 46) break;
-      context.textAlign = 'center';
-      context.fillText(data.axisLabel(index, false), position, height - 11);
+      const label = data.axisLabel(index);
+      const halfWidth = context.measureText(label).width / 2;
+      if (position - halfWidth < previousEnd + 6 || position + halfWidth + 6 > lastLeft) continue;
+      context.fillText(label, position, height - 11);
+      previousEnd = position + halfWidth;
     }
     context.textAlign = data.stack ? 'center' : 'right';
-    context.fillText(data.axisLabel(maxMonth, true), x(maxMonth), height - 11);
+    context.fillText(lastLabel, x(maxMonth), height - 11);
 
     const stack = data.stack;
     if (stack) {

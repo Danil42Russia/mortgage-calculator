@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { formatPaymentMonth, formatTerm, numberFromInput } from '../src/format.ts';
+import { formatPaymentMonth, formatPaymentPeriod, formatPaymentYear, formatTerm, numberFromInput, paymentAxisLabel } from '../src/format.ts';
 import { DEFAULT_SCENARIO, evaluateScenario, familyTerms } from '../src/scenario.ts';
 import { scheduleCsv } from '../src/schedule-table.ts';
 
@@ -109,4 +109,21 @@ test('a December start dates each payment and splits the CSV at calendar year bo
   assert.equal(years.length, 3);
   assert.equal(years[1], ['2027', ...months[1].split(';').slice(2)].join(';'));
   assert.match(years[2], /^2028;.*;0,00$/u);
+});
+
+test('monthly chart labels put the calendar first and count from the first payment', () => {
+  const start = { year: 2027, month: 12 };
+  assert.equal(formatPaymentPeriod(0, start), 'До первого платежа');
+  assert.equal(paymentAxisLabel(1, start), '12.2027');
+  assert.equal(paymentAxisLabel(2, start), '01.2028');
+  assert.match(formatPaymentPeriod(1, start), /^декабрь 2027.* · месяц 1$/u);
+  assert.match(formatPaymentPeriod(2, start), /^январь 2028.* · месяц 2$/u);
+});
+
+test('annual chart labels use only months included in each calendar-year bar', () => {
+  const start = { year: 2027, month: 12 };
+  assert.equal(formatPaymentYear(0, start, 15), formatPaymentPeriod(1, start));
+  assert.equal(formatPaymentYear(1, start, 15), formatPaymentPeriod(2, start, 13));
+  assert.match(formatPaymentYear(2, start, 15), /^январь.*февраль 2029.* · месяцы 14–15$/u);
+  assert.equal(formatPaymentYear(0, { year: 2027, month: 1 }, 1), 'январь 2027 г. · месяц 1');
 });

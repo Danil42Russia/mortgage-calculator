@@ -1,4 +1,4 @@
-import { formatPaymentMonth, integer } from './format.ts';
+import { formatPaymentMonth, formatPaymentPeriod, formatPaymentYear, integer } from './format.ts';
 import type { PaymentStart } from './format.ts';
 import { summarizeSchedule } from './mortgage.ts';
 import type { PaymentRow, SchedulePeriod } from './mortgage.ts';
@@ -10,17 +10,14 @@ function amounts(row: SchedulePeriod) {
   return [row.payment, row.principal, row.interest, row.prepayment, row.insurance, row.balance];
 }
 
-function periodColumns(period: number, grouping: 'month' | 'year', start?: PaymentStart) {
-  if (!start) return [period];
-  return grouping === 'year' ? [start.year + period - 1] : [period, formatPaymentMonth(period, start)];
-}
-
 export function scheduleCsv(rows: readonly PaymentRow[], grouping: 'month' | 'year', start?: PaymentStart) {
   const labels = grouping === 'year' ? ['Год'] : start ? ['№ платежа', 'Месяц'] : ['Месяц'];
   const header = [...labels, ...headings].join(';');
-  const data = summarizeSchedule(rows, grouping, start?.month).map(row => (
-    [...periodColumns(row.period, grouping, start), ...amounts(row).map(value => value.toFixed(2).replace('.', ','))].join(';')
-  ));
+  const data = summarizeSchedule(rows, grouping, start?.month).map(row => {
+    const period = !start ? [row.period] : grouping === 'year'
+      ? [start.year + row.period - 1] : [row.period, formatPaymentMonth(row.period, start)];
+    return [...period, ...amounts(row).map(value => value.toFixed(2).replace('.', ','))].join(';');
+  });
   return '\uFEFF' + [header, ...data].join('\r\n') + '\r\n';
 }
 
@@ -49,10 +46,11 @@ export function setupSchedule() {
     const visible = joined.slice(start, start + pageSize);
     rowsElement.replaceChildren();
 
-    if (visible.length) {
+    if (visible.length && firstPayment) {
       for (const row of visible) {
         const tr = rowsElement.insertRow();
-        tr.insertCell().textContent = periodColumns(row.period, grouping, firstPayment).join(' · ');
+        tr.insertCell().textContent = grouping === 'year'
+          ? formatPaymentYear(row.period - 1, firstPayment, rows.length) : formatPaymentPeriod(row.period, firstPayment);
         for (const value of amounts(row)) tr.insertCell().textContent = integer(value);
       }
     } else {

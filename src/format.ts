@@ -66,9 +66,30 @@ export function parseStartMonth(value: string | null): PaymentStart | undefined 
 }
 
 const paymentCalendar = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+const shortPaymentCalendar = new Intl.DateTimeFormat('ru-RU', { month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+
+function paymentDate(month: number, start: PaymentStart) {
+  return Date.UTC(start.year, start.month + month - 2, 1);
+}
 
 export function formatPaymentMonth(month: number, start: PaymentStart = { year: firstPaymentYear, month: 1 }) {
-  return paymentCalendar.format(Date.UTC(start.year, start.month + month - 2, 1));
+  return paymentCalendar.format(paymentDate(month, start));
+}
+
+export function paymentAxisLabel(month: number, start: PaymentStart) {
+  return month === 0 ? 'Старт' : shortPaymentCalendar.format(paymentDate(month, start));
+}
+
+export function formatPaymentPeriod(first: number, start: PaymentStart, last = first) {
+  if (first === 0) return 'До первого платежа';
+  if (first === last) return formatPaymentMonth(first, start) + ' · месяц ' + first;
+  const dates = paymentCalendar.formatRange(paymentDate(first, start), paymentDate(last, start));
+  return dates + ' · месяцы ' + first + '–' + last;
+}
+
+export function formatPaymentYear(yearIndex: number, start: PaymentStart, months: number) {
+  const january = 12 * yearIndex + 2 - start.month;
+  return formatPaymentPeriod(Math.max(1, january), start, Math.min(january + 11, months));
 }
 
 export function formatTerm(months: number, monthStyle: 'short' | 'long' = 'short') {
